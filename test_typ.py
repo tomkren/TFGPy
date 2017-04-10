@@ -27,6 +27,16 @@ class TestTyp(unittest.TestCase):
         a, b = TypTerm((TypVar(10), TypSymbol("S1"))), TypTerm((TypVar(11), TypSymbol("S1")))
         self.assertNotEqual(a, b)
 
+    def test_fresh(self):
+        a, b = TypTerm((TypVar(1), TypVar(1))), TypTerm((TypVar(1), TypVar(10)))
+
+        fr = fresh(a, b, 10)
+        self.assertEqual(fr.n, 12)
+        # TODO
+
+
+
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -92,6 +92,20 @@ class Sub:
     def is_failed(self):
         return bool(self.fail_msg)
 
+    def restrict(self, typ):
+        if self.is_failed():
+            raise RuntimeError("Restrict on a failed %s" % repr(self))
+        keyset = typ.get_sub_keys()
+        new_table = {}
+        for k, v in self.table.items():
+            if k in keyset:
+                new_table[k] = v
+
+        return Sub(new_table)
+
+    def domain(self):
+        return set(self.table.keys())
+
 
 if __name__ == "__main__":
     pass

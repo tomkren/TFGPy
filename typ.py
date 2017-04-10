@@ -1,5 +1,11 @@
+from collections import namedtuple
+from typing import Tuple
+
+FreshResult = namedtuple('FreshResult', ['typ', 'n'])
+
+
 class Typ:
-    def apply_mini_sub(self, key, type):
+    def apply_mini_sub(self, key, typ):
         raise NotImplementedError
 
     def __eq__(self, other):
@@ -15,14 +21,29 @@ class Typ:
     def __hash__(self):
         raise NotImplementedError
 
+    def get_sub_keys(self):
+        raise NotImplementedError
+
+    def get_next_var_id(self, acc):
+        raise NotImplementedError
+
+    def freshen_vars(self, n) -> FreshResult:
+        return FreshResult(*self._freshen_vars_acc(n, {}))
+
+    def _freshen_vars_acc(self, n, table):
+        raise NotImplementedError
+
+    def contains_var(self, var):
+        raise NotImplementedError
+
 
 class TypVar(Typ):
     def __init__(self, name):
         self.name = name
 
-    def apply_mini_sub(self, key, type):
+    def apply_mini_sub(self, key, typ):
         if self == key:
-            return type
+            return typ
         return self
 
     def _eq_content(self, other):
@@ -35,7 +56,23 @@ class TypVar(Typ):
         return hash(self.name)
 
     def __repr__(self):
-        return "TypVar(%s)"%(self.name)
+        return "TypVar(%s)" % (repr(self.name))
+
+    def get_sub_keys(self):
+        return {self}
+
+    def get_next_var_id(self, acc=0):
+        if isinstance(self.name, int):
+            return max(acc, self.name + 1)
+        return acc
+
+    def _freshen_vars_acc(self, n, table):
+        new_var = table.get(self, None)
+        if new_var is None:
+            new_var = TypVar(n)
+            table[self] = new_var
+            n += 1
+        return new_var, n
 
 
 class TypSymbol(Typ):
@@ -55,12 +92,22 @@ class TypSymbol(Typ):
         return hash(self.name)
 
     def __repr__(self):
-        return "TypSymbol(%s)"%(self.name)
+        return "TypSymbol(%s)" % (repr(self.name))
+
+    def get_sub_keys(self):
+        return set()
+
+    def get_next_var_id(self, acc=0):
+        return acc
+
+    def _freshen_vars_acc(self, n, table):
+        return self, n
 
 
 class TypTerm(Typ):
-    def __init__(self, arguments):
+    def __init__(self, arguments: Tuple[Typ]):
         assert isinstance(arguments, tuple)
+        assert arguments
         self.arguments = arguments
 
     def apply_mini_sub(self, *args):
@@ -76,4 +123,27 @@ class TypTerm(Typ):
         return hash(self.arguments)
 
     def __repr__(self):
-        return "TypTerm(%s)"%(",".join(repr(a) for a in self.arguments))
+        return "TypTerm(%s)" % (repr(self.arguments))
+
+    def get_sub_keys(self):
+        sub_keys = set()
+        for a in self.arguments:
+            sub_keys.update(a.get_sub_keys())
+        return sub_keys
+
+    def get_next_var_id(self, acc=0):
+        return max(a.get_next_var_id(acc) for a in self.arguments)
+
+    def _freshen_vars_acc(self, n, table):
+        new_arguments = []
+        for a in self.arguments:
+            new_term, n = a._freshen_vars_acc(n, table)
+            new_arguments.append(new_term)
+        return TypTerm(tuple(new_arguments)), n
+
+
+def fresh(t_fresh: Typ, t_avoid: Typ, n):
+    n1 = t_avoid.get_next_var_id(n)
+    n2 = t_fresh.get_next_var_id(n1)
+
+    return t_fresh.freshen_vars(n2)

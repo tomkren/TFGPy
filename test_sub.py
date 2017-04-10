@@ -42,13 +42,18 @@ class TestSub(unittest.TestCase):
                 ))
             ))
         ))
-
+        u = mgu(a, b)
         self.assertEqual(Sub({
             TypVar('x1'): TypTerm((TypSymbol('A'), TypSymbol('B'))),
             TypVar('x2'): TypSymbol('B'),
             TypVar('x3'): TypSymbol('B'),
             TypVar('x4'): TypSymbol('A')
-        }), mgu(a, b))
+        }), u)
+
+        # test restrict
+
+        ru = u.restrict(a)
+        self.assertEqual(ru.domain(), {TypVar('x1'), TypVar('x2')})
 
     def test_5(self):
         a, b = TypSymbol('A'), TypSymbol('B')
@@ -99,6 +104,8 @@ class TestSub(unittest.TestCase):
         u_sub = mgu(a, b)
         self.assertTrue(u_sub.is_failed())
         self.assertTrue(u_sub.fail_msg.startswith('Not Typs'))
+
+
 
 if __name__ == "__main__":
     unittest.main()
