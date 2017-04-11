@@ -1,6 +1,9 @@
 from collections import namedtuple
+from functools import reduce
 from typing import Tuple
 from collections import Sequence
+
+import utils
 
 FreshResult = namedtuple('FreshResult', ['typ', 'n'])
 
@@ -22,8 +25,17 @@ class Typ:
     def __hash__(self):
         raise NotImplementedError
 
-    def get_sub_keys(self):
+    def gather_leaves(self, pred):
         raise NotImplementedError
+
+    def get_sub_keys(self):
+        # TODO skolem-ready
+        return self.get_vars()
+
+    def get_vars(self):
+        return self.gather_leaves(
+            lambda leaf: isinstance(leaf, TypVar)
+        )
 
     def get_next_var_id(self, acc):
         raise NotImplementedError
@@ -62,8 +74,10 @@ class TypVar(Typ):
     def __repr__(self):
         return "TypVar(%s)" % (repr(self.name))
 
-    def get_sub_keys(self):
-        return {self}
+    def gather_leaves(self, pred):
+        if pred(self):
+            return {self}
+        return set()
 
     def get_next_var_id(self, acc=0):
         if isinstance(self.name, int):
@@ -103,7 +117,9 @@ class TypSymbol(Typ):
     def __repr__(self):
         return "TypSymbol(%s)" % (repr(self.name))
 
-    def get_sub_keys(self):
+    def gather_leaves(self, pred):
+        if pred(self):
+            return {self}
         return set()
 
     def get_next_var_id(self, acc=0):
@@ -137,11 +153,8 @@ class TypTerm(Typ):
     def __repr__(self):
         return "TypTerm(%s)" % (repr(self.arguments))
 
-    def get_sub_keys(self):
-        sub_keys = set()
-        for a in self.arguments:
-            sub_keys.update(a.get_sub_keys())
-        return sub_keys
+    def gather_leaves(self, pred):
+        return utils.union_sets(a.gather_leaves(pred) for a in self.arguments)
 
     def get_next_var_id(self, acc=0):
         return max(a.get_next_var_id(acc) for a in self.arguments)
@@ -187,5 +200,3 @@ def parse_typ(json):
         return TypTerm(tuple(parse_typ(x) for x in json))
     else:
         raise ValueError("Unsupported input value %s" % json)
-
-

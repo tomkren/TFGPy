@@ -1,5 +1,6 @@
 import copy
 
+import utils
 from typ import Typ, TypSymbol, TypVar, TypTerm, parse_typ
 
 
@@ -81,7 +82,7 @@ class Sub:
         self.table = table
         self.fail_msg = fail_msg
 
-    def apply(self, typ):
+    def __call__(self, typ):
         return typ.apply_sub(self)
 
     def restrict(self, typ):
@@ -117,7 +118,7 @@ class Sub:
 def dot(g, f):
     ret = copy.copy(g.table)
     for f_key, f_val in f.items():
-        gf_val = g.apply(f_val)
+        gf_val = g(f_val)
         if gf_val == f_key:
             del ret[f_key]
         else:
@@ -130,8 +131,32 @@ def parse_ctx(d):
     table = {parse_typ(k): parse_typ(v) for k, v in d.items()}
     return Sub(table)
 
-def mover():
-    pass
+
+class Mover:
+    def __init__(self, typ: Typ, n):
+        self.typ = typ
+        self.tnvi_0 = typ.get_next_var_id(0)
+        self.tnvi_n = max(self.tnvi_0, n)
+
+    def __call__(self, sub):
+        codomain_vars = utils.union_sets(t.get_vars() for t in sub.table.values())
+
+        delta_table = {}
+        nvi = self.tnvi_n
+
+        for var in codomain_vars:
+            if not isinstance(var.name, int):
+                continue
+            if var.name >= self.tnvi_0:
+                delta_table[var] = TypVar(nvi)
+                nvi += 1
+
+        return dot(Sub(delta_table), sub).restrict(self.typ)
+
+    @staticmethod
+    def move_pre_sub_results(typ: Typ, n, pre_sub_results):
+        m = Mover(typ, n)
+        return [m(res) for res in pre_sub_results]
 
 
 if __name__ == "__main__":
