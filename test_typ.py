@@ -28,12 +28,20 @@ class TestTyp(unittest.TestCase):
         self.assertNotEqual(a, b)
 
     def test_fresh(self):
-        a, b = TypTerm((TypVar(1), TypVar(1))), TypTerm((TypVar(1), TypVar(10)))
+        a, b = TypTerm((TypVar(1), TypVar(1))), TypTerm((TypVar(1), TypVar(1)))
+        f = fresh(a, b, 1)
+        self.assertEqual(f.typ, TypTerm((TypVar(2), TypVar(2))))
+        self.assertEqual(f.n, 3)
 
-        fr = fresh(a, b, 10)
-        self.assertEqual(fr.n, 12)
-        # TODO
+        a, b = TypTerm((TypVar(1), TypVar(2))), TypTerm((TypVar(3), TypVar(4)))
+        f = fresh(a, b, 3)
+        self.assertEqual(f.typ, TypTerm((TypVar(5), TypVar(6))))
+        self.assertEqual(f.n, 7)
 
+        a, b = TypTerm((TypVar(1), TypVar(2))), TypTerm((TypVar(3), TypVar(4)))
+        f = fresh(a, b, 10)
+        self.assertEqual(f.typ, TypTerm((TypVar(10), TypVar(11))))
+        self.assertEqual(f.n, 12)
 
 
 
