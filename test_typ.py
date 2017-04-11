@@ -43,7 +43,23 @@ class TestTyp(unittest.TestCase):
         self.assertEqual(f.typ, TypTerm((TypVar(10), TypVar(11))))
         self.assertEqual(f.n, 12)
 
+    def test_parse1(self):
+        self.assertEqual(parse_typ("x"), TypVar("x"))
 
+    def test_parse2(self):
+        typ = TypTerm((
+            TypVar('x1'),
+            TypTerm((
+                TypTerm((
+                    TypSymbol('A'), TypSymbol('B')
+                )),
+                TypVar('x2'), TypVar('x1')
+            ))
+        ))
+
+        self.assertEqual(parse_typ(('x1', (('A', 'B'), 'x2', 'x1'))), typ)
+        self.assertEqual(parse_typ(['x1', [['A', 'B'], 'x2', 'x1']]), typ)
+        self.assertEqual(parse_typ(['x1', [('A', 'B'), 'x2', 'x1']]), typ)
 
 
 if __name__ == "__main__":

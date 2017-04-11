@@ -1,5 +1,6 @@
 from collections import namedtuple
 from typing import Tuple
+from collections import Sequence
 
 FreshResult = namedtuple('FreshResult', ['typ', 'n'])
 
@@ -172,3 +173,19 @@ def new_var(typ: Typ, n):
     n1 = typ.get_next_var_id(n)
 
     return TypVar(n1), n1 + 1
+
+
+def parse_typ(json):
+    if isinstance(json, Typ):
+        return json
+    if isinstance(json, str):
+        assert len(json) > 0
+        return TypSymbol(json) if json[0].isupper() else TypVar(json)
+    elif isinstance(json, int):
+        return TypVar(json)
+    elif isinstance(json, Sequence):
+        return TypTerm(tuple(parse_typ(x) for x in json))
+    else:
+        raise ValueError("Unsupported input value %s" % json)
+
+

@@ -105,6 +105,36 @@ class TestSub(unittest.TestCase):
         self.assertTrue(u_sub.is_failed())
         self.assertTrue(u_sub.fail_msg.startswith('Not Typs'))
 
+    def test_apply(self):
+
+        sub = Sub({TypVar("x"): TypSymbol("S")})
+        typ = TypTerm((TypVar("x"), TypVar("y")))
+
+        self.assertEqual(sub.apply(typ), TypTerm((TypSymbol("S"), TypVar("y"))))
+
+    def test_parse_ctx1(self):
+
+        sub = Sub({TypVar("x"): TypSymbol("S"), })
+        self.assertEqual(sub, parse_ctx({"x": "S"}))
+
+    def test_parse_ctx2(self):
+
+        typ = TypTerm((
+            TypTerm((
+                TypSymbol('A'), TypVar('x2'),
+            )),
+            TypTerm((
+                TypVar('x1'), TypVar('x3'),
+                TypTerm((
+                    TypVar('x4'), TypSymbol('B')
+                ))
+            ))
+        ))
+
+        sub = Sub({TypVar('x'): TypSymbol('S'), TypVar(1): typ})
+        sub2 = parse_ctx({'x': 'S', 1: (['A', 'x2'], ['x1', 'x3', ('x4', 'B')])})
+
+        self.assertEqual(sub, sub2)
 
 
 if __name__ == "__main__":

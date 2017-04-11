@@ -1,6 +1,6 @@
 import copy
 
-from typ import Typ, TypSymbol, TypVar, TypTerm
+from typ import Typ, TypSymbol, TypVar, TypTerm, parse_typ
 
 
 def mgu(t1: Typ, t2: Typ):
@@ -75,7 +75,9 @@ def mgu(t1: Typ, t2: Typ):
 
 
 class Sub:
-    def __init__(self, table={}, fail_msg=None):
+    def __init__(self, table=None, fail_msg=None):
+        if table is None:
+            table = {}
         self.table = table
         self.fail_msg = fail_msg
 
@@ -123,6 +125,10 @@ def dot(g, f):
 
     return Sub(ret)
 
+
+def parse_ctx(d):
+    table = {parse_typ(k): parse_typ(v) for k, v in d.items()}
+    return Sub(table)
 
 def mover():
     pass
