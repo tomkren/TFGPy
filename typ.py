@@ -1,8 +1,6 @@
 from collections import namedtuple
 from typing import Tuple
 
-from sub import Sub
-
 FreshResult = namedtuple('FreshResult', ['typ', 'n'])
 
 
@@ -38,7 +36,7 @@ class Typ:
     def contains_var(self, var):
         raise NotImplementedError
 
-    def apply_sub(self, sub: Sub):
+    def apply_sub(self, sub):
         raise NotImplementedError
 
 
