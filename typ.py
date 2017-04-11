@@ -1,6 +1,8 @@
 from collections import namedtuple
 from typing import Tuple
 
+from sub import Sub
+
 FreshResult = namedtuple('FreshResult', ['typ', 'n'])
 
 
@@ -34,6 +36,9 @@ class Typ:
         raise NotImplementedError
 
     def contains_var(self, var):
+        raise NotImplementedError
+
+    def apply_sub(self, sub: Sub):
         raise NotImplementedError
 
 
@@ -74,6 +79,11 @@ class TypVar(Typ):
             n += 1
         return new_var, n
 
+    def apply_sub(self, sub):
+        if self in sub.table:
+            return sub.table[self]
+        return self
+
 
 class TypSymbol(Typ):
     def __init__(self, name):
@@ -103,9 +113,12 @@ class TypSymbol(Typ):
     def _freshen_vars_acc(self, n, table):
         return self, n
 
+    def apply_sub(self, sub):
+        return self
+
 
 class TypTerm(Typ):
-    def __init__(self, arguments: Tuple[Typ]):
+    def __init__(self, arguments):
         assert isinstance(arguments, tuple)
         assert arguments
         self.arguments = arguments
@@ -141,9 +154,23 @@ class TypTerm(Typ):
             new_arguments.append(new_term)
         return TypTerm(tuple(new_arguments)), n
 
+    def apply_sub(self, sub):
+        # TODO measure speedup
+        children = tuple(a.apply_sub(sub) for a in self.arguments)
+        for c, a in zip(children, self.arguments):
+            if id(c) != id(a):
+                return TypTerm(children)
+        return self
+
 
 def fresh(t_fresh: Typ, t_avoid: Typ, n):
     n1 = t_avoid.get_next_var_id(n)
     n2 = t_fresh.get_next_var_id(n1)
 
     return t_fresh.freshen_vars(n2)
+
+
+def new_var(typ: Typ, n):
+    n1 = typ.get_next_var_id(n)
+
+    return TypVar(n1), n1 + 1

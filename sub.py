@@ -1,3 +1,5 @@
+import copy
+
 from typ import Typ, TypSymbol, TypVar, TypTerm
 
 
@@ -77,20 +79,8 @@ class Sub:
         self.table = table
         self.fail_msg = fail_msg
 
-    def __eq__(self, other):
-        if not self.fail_msg:
-            return self.table == other.table
-
-        raise RuntimeError("Comparing two failed substitutions.")
-
-    def __repr__(self):
-        if not self.fail_msg:
-            return "Sub(%s)" % (self.table)
-        else:
-            return "Sub(fail_msg='%s')" % (self.fail_msg)
-
-    def is_failed(self):
-        return bool(self.fail_msg)
+    def apply(self, typ):
+        return typ.apply_sub(self)
 
     def restrict(self, typ):
         if self.is_failed():
@@ -105,6 +95,37 @@ class Sub:
 
     def domain(self):
         return set(self.table.keys())
+
+    def is_failed(self):
+        return bool(self.fail_msg)
+
+    def __eq__(self, other):
+        if not self.fail_msg:
+            return self.table == other.table
+
+        raise RuntimeError("Comparing two failed substitutions.")
+
+    def __repr__(self):
+        if not self.fail_msg:
+            return "Sub(%s)" % (self.table)
+        else:
+            return "Sub(fail_msg='%s')" % (self.fail_msg)
+
+
+def dot(g, f):
+    ret = copy.copy(g.table)
+    for f_key, f_val in f.items():
+        gf_val = g.apply(f_val)
+        if gf_val == f_key:
+            del ret[f_key]
+        else:
+            ret[f_key] = gf_val
+
+    return Sub(ret)
+
+
+def mover():
+    pass
 
 
 if __name__ == "__main__":
