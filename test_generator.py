@@ -1,7 +1,8 @@
 import unittest
 from collections import OrderedDict
 
-from parsers import parse_ctx
+from generator_static import ts
+from parsers import parse_ctx, parse_typ
 
 
 def make_gamma():
@@ -19,11 +20,24 @@ def make_gamma():
     ]))
 
 
-class TestSub(unittest.TestCase):
-    pass
+def make_goal():
+    return parse_typ((('P', 'A', ('P', 'A', 'A')), '->', ('P', 'A', ('P', 'A', 'A'))))
+
+
+class TestStaticGen(unittest.TestCase):
+    def test(self):
+        print(str(make_gamma()))
+        print(str(make_goal()))
+        print('='*20)
+
+        gamma, goal = make_gamma(), make_goal()
+        for k in range(1, 4):
+            res = ts(gamma, k, goal, 0)
+            for a in res:
+                print(repr(a))
+            pass
 
 
 if __name__ == "__main__":
-    #    unittest.main()
+    unittest.main()
 
-    print(str(make_gamma()))
