@@ -26,18 +26,20 @@ def make_goal():
 
 class TestStaticGen(unittest.TestCase):
     def test(self):
-        print(str(make_gamma()))
-        print(str(make_goal()))
-        print('='*20)
-
-        gamma, goal = make_gamma(), make_goal()
-        for k in range(1, 4):
-            res = ts(gamma, k, goal, 0)
-            for a in res:
-                print(repr(a))
-            pass
-
+        pass
 
 if __name__ == "__main__":
-    unittest.main()
+    #unittest.main()
+    print(str(make_gamma()))
+    print('='*20)
+    print(str(make_goal()))
+    print('='*20)
+
+    gamma, goal = make_gamma(), make_goal()
+    for k in range(1, 9):
+        res = ts(gamma, k, goal, 0)
+        print(repr(res))
+        for a in res:
+            print(repr(a))
+        pass
 

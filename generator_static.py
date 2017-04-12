@@ -36,6 +36,8 @@ def ts(gamma, k, typ, n):
     if k == 1:
         return ts_1(gamma, typ, n)
 
-    ret = [ts_ij(gamma, i, k - i, typ, n)
-           for i in range(1, k - 1)]
+    ret = []
+    for i in range(1, k - 1):
+        ret.extend(ts_ij(gamma, i, k - i, typ, n))
+
     return Mover.move_ts_results(typ, n, ret)

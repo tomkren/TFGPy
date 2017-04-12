@@ -165,7 +165,7 @@ class Mover:
     @staticmethod
     def move_results(typ: Typ, n, results, zipper):
         m = Mover(typ, n)
-        return [zipper(res, m(res)) for res in results]
+        return [zipper(res, m(res.sub)) for res in results]
 
     @staticmethod
     def move_pre_sub_results(typ, n, pre_sub_results):
