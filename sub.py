@@ -126,6 +126,12 @@ class Sub:
         else:
             return "Sub(fail_msg='%s')" % (self.fail_msg)
 
+    def __str__(self):
+        if not self.fail_msg:
+            return "\n".join("%s : %s" % (k, v) for k, v in self.table.items())
+        else:
+            return "FAIL: %s" % (self.fail_msg)
+
 
 def dot(g, f):
     ret = copy.copy(g.table)
