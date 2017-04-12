@@ -1,9 +1,22 @@
+from sub import mgu
+from typ import fresh, is_fun_type, split_fun_type
+
+
 class AppTree:
-    pass
+    def is_well_typed(self, gamma):
+        is_ok, _ = self.is_well_typed_acc(gamma, 0)
+        return is_ok
+
+    def is_well_typed_acc(self, gamma, n):
+        raise NotImplementedError
+
+    def apply_sub(self, sub):
+        raise NotImplementedError
 
 
 class App(AppTree):
     def __init__(self, fun, arg, typ):
+        assert is_fun_type(fun.typ)
         self.fun = fun
         self.arg = arg
         self.typ = typ
@@ -13,6 +26,19 @@ class App(AppTree):
 
     def __str__(self):
         return "(%s %s)" % (self.fun, self.arg)
+
+    def apply_sub(self, sub):
+        return App(self.fun.apply_sub(sub), self.arg.apply_sub(sub), sub(self.typ))
+
+    def is_well_typed_acc(self, gamma, n):
+        left, right = split_fun_type(self.fun.typ)
+
+        if left == self.arg.typ and right == self.typ:
+            is_ok, n1 = self.fun.is_well_typed_acc(gamma, n)
+            if is_ok:
+                return self.arg.is_well_typed_acc(gamma, n1)
+
+        return False, None
 
 
 class Leaf(AppTree):
@@ -25,3 +51,16 @@ class Leaf(AppTree):
 
     def __str__(self):
         return str(self.sym)
+
+    def apply_sub(self, sub):
+        return Leaf(self.sym, sub(self.typ))
+
+    def is_well_typed_acc(self, gamma, n):
+        if self.sym not in gamma.ctx:
+            return False, None
+
+        t_s = gamma.ctx[self.sym].typ
+        fr = fresh(t_s, self.typ, n)
+        mu = mgu(self.typ, fr.typ)
+
+        return not mu.is_failed(), fr.n

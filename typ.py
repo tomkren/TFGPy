@@ -95,7 +95,7 @@ class TypVar(Typ):
         return self
 
     def __str__(self):
-        return ".%s"%self.name
+        return ".%s" % self.name
 
 
 class TypSymbol(Typ):
@@ -135,11 +135,21 @@ class TypSymbol(Typ):
         return str(self.name)
 
 
+T_ARROW = TypSymbol('->')
+
+
 class TypTerm(Typ):
+    @staticmethod
+    def make_arrow(left, right):
+        return TypTerm((T_ARROW, left, right))
+
     def __init__(self, arguments):
         assert isinstance(arguments, tuple)
         assert arguments
         self.arguments = arguments
+
+        if is_fun_type(self):
+            assert len(arguments) == 3
 
     def apply_mini_sub(self, *args):
         return TypTerm(tuple(a.apply_mini_sub(*args) for a in self.arguments))
@@ -178,16 +188,20 @@ class TypTerm(Typ):
         return self
 
     def __str__(self):
+        if is_fun_type(self):
+            op, l, r = self.arguments
+            return "(%s %s %s)" % (l, op, r)
+
         return "(%s)" % " ".join(str(a) for a in self.arguments)
 
 
-class InfixBinTerm(TypTerm):
-    def __init__(self, op, left, right):
-        super().__init__((op, left, right))
+def is_fun_type(typ):
+    return isinstance(typ, TypTerm) and typ.arguments[0] == T_ARROW
 
-    def __str__(self):
-        op, left, right = self.arguments
-        return "(%s %s %s)" % (left, op, right)
+
+def split_fun_type(typ: TypTerm):
+    assert is_fun_type(typ)
+    return typ.arguments[1], typ.arguments[2]
 
 
 def fresh(t_fresh: Typ, t_avoid: Typ, n):
@@ -201,5 +215,3 @@ def new_var(typ: Typ, n):
     n1 = typ.get_next_var_id(n)
 
     return TypVar(n1), n1 + 1
-
-
