@@ -97,6 +97,9 @@ class TypVar(Typ):
             return sub.table[self]
         return self
 
+    def __str__(self):
+        return str(self.name)
+
 
 class TypSymbol(Typ):
     def __init__(self, name):
@@ -130,6 +133,9 @@ class TypSymbol(Typ):
 
     def apply_sub(self, sub):
         return self
+
+    def __str__(self):
+        return str(self.name)
 
 
 class TypTerm(Typ):
@@ -173,6 +179,19 @@ class TypTerm(Typ):
             if id(c) != id(a):
                 return TypTerm(children)
         return self
+
+    def __str__(self):
+        return "(%s)" % " ".join(str(a) for a in self.arguments)
+
+
+class InfixBinTerm(TypTerm):
+    def __init__(self, op, left, right):
+        super().__init__((op, left, right))
+
+    def __str__(self):
+        op, left, right = self.arguments
+        return "(%s %s %s)" % (left, op, right)
+
 
 
 def fresh(t_fresh: Typ, t_avoid: Typ, n):

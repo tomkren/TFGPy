@@ -115,7 +115,7 @@ class TestSub(unittest.TestCase):
     def test_parse_ctx1(self):
 
         sub = Sub({TypVar("x"): TypSymbol("S"), })
-        self.assertEqual(sub, parse_ctx({"x": "S"}))
+        self.assertEqual(sub, parse_sub({"x": "S"}))
 
     def test_parse_ctx2(self):
 
@@ -132,7 +132,7 @@ class TestSub(unittest.TestCase):
         ))
 
         sub = Sub({TypVar('x'): TypSymbol('S'), TypVar(1): typ})
-        sub2 = parse_ctx({'x': 'S', 1: (['A', 'x2'], ['x1', 'x3', ('x4', 'B')])})
+        sub2 = parse_sub({'x': 'S', 1: (['A', 'x2'], ['x1', 'x3', ('x4', 'B')])})
 
         self.assertEqual(sub, sub2)
 

@@ -2,12 +2,8 @@ from collections import OrderedDict
 from collections import namedtuple
 
 from context import Context
-from sub import mgu, Mover
+from sub import mgu, Mover, SubRes, PreTs1Res
 from typ import Typ, fresh, new_var
-
-PreTs1Res = namedtuple('PreTs1Res', ['sym', 'sub'])
-PreSubRes = namedtuple('PreSubRes', ['num', 'sigma'])
-SubRes = namedtuple('SubRes', ['num', 'sigma', 'n'])
 
 
 def ts1_static(gamma: Context, typ: Typ, n):
@@ -27,13 +23,13 @@ def pack(typ, n, pre_sub_results):
     sub_results = Mover.move_pre_sub_results(typ, n, pre_sub_results)
 
     for res in sub_results:
-        sigma = res.sigma
+        sigma = res.sub
         val = results.get(sigma, None)
         if val is None:
             results[sigma] = res
         else:
             assert res.n == val.n
-            results[sigma] = SubRes(val.num + res.num, val.sigma, val.n)
+            results[sigma] = SubRes(val.num + res.num, val.sub, val.n)
 
     # NOTE: watchout, returning generator
     return results.values()

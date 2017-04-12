@@ -1,7 +1,20 @@
 import copy
+from collections import namedtuple
 
 import utils
 from typ import Typ, TypSymbol, TypVar, TypTerm, parse_typ
+
+
+PreTs1Res = namedtuple('PreTs1Res', ['sym', 'sub'])
+Ts1Res = namedtuple('Ts1Res', ['sym', 'sub', 'n'])
+
+# PreTsRes = namedtuple('PreTsRes', ['tree', 'sub'])
+TsRes = namedtuple('TsRes', ['tree', 'sub', 'n'])
+
+PreSubRes = namedtuple('PreSubRes', ['num', 'sub'])
+SubRes = namedtuple('SubRes', ['num', 'sub', 'n'])
+
+MoverRes = namedtuple('MoverRes', ['sub', 'n'])
 
 
 def mgu(t1: Typ, t2: Typ):
@@ -127,7 +140,7 @@ def dot(g, f):
     return Sub(ret)
 
 
-def parse_ctx(d):
+def parse_sub(d):
     table = {parse_typ(k): parse_typ(v) for k, v in d.items()}
     return Sub(table)
 
@@ -151,12 +164,32 @@ class Mover:
                 delta_table[var] = TypVar(nvi)
                 nvi += 1
 
-        return dot(Sub(delta_table), sub).restrict(self.typ)
+        moved_sub = dot(Sub(delta_table), sub).restrict(self.typ)
+
+        return MoverRes(moved_sub, nvi)
 
     @staticmethod
-    def move_pre_sub_results(typ: Typ, n, pre_sub_results):
+    def move_results(typ: Typ, n, results, zipper):
         m = Mover(typ, n)
-        return [m(res) for res in pre_sub_results]
+        return [zipper(res, m(res)) for res in results]
+
+    @staticmethod
+    def move_pre_sub_results(typ, n, pre_sub_results):
+        return Mover.move_results(typ, n, pre_sub_results, (
+            lambda psr, mr: SubRes(psr.num, mr.sub, mr.n)
+        ))
+
+    @staticmethod
+    def move_pre_ts1_results(typ, n, pre_ts1_results):
+        return Mover.move_results(typ, n, pre_ts1_results, (
+            lambda ts1r, mr: Ts1Res(ts1r.sym, mr.sub, mr.n)
+        ))
+
+    @staticmethod
+    def move_ts_results(typ, n, ts_results):
+        return Mover.move_results(typ, n, ts_results, (
+            lambda tsr, mr: TsRes(tsr.tree, mr.sub, mr.n)
+        ))
 
 
 if __name__ == "__main__":
