@@ -95,7 +95,7 @@ class TypVar(Typ):
         return self
 
     def __str__(self):
-        return str(self.name)
+        return ".%s"%self.name
 
 
 class TypSymbol(Typ):

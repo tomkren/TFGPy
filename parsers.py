@@ -20,7 +20,7 @@ def parse_typ(json):
         return json
     if isinstance(json, str):
         assert len(json) > 0
-        return TypSymbol(json) if json[0].isupper() else TypVar(json)
+        return TypSymbol(json) if not json[0].islower() else TypVar(json)
     elif isinstance(json, int):
         return TypVar(json)
     elif isinstance(json, Sequence):

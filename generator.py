@@ -14,6 +14,7 @@ def ts1_static(gamma: Context, typ: Typ, n):
             sigma = mu.restrict(typ)
             ret.append(PreTs1Res(sym, sigma))
 
+
     return ret
 
 

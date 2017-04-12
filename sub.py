@@ -129,7 +129,7 @@ class Sub:
 
 def dot(g, f):
     ret = copy.copy(g.table)
-    for f_key, f_val in f.items():
+    for f_key, f_val in f.table.items():
         gf_val = g(f_val)
         if gf_val == f_key:
             del ret[f_key]
