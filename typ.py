@@ -1,7 +1,4 @@
 from collections import namedtuple
-from functools import reduce
-from typing import Tuple
-from collections import Sequence
 
 import utils
 
@@ -193,7 +190,6 @@ class InfixBinTerm(TypTerm):
         return "(%s %s %s)" % (left, op, right)
 
 
-
 def fresh(t_fresh: Typ, t_avoid: Typ, n):
     n1 = t_avoid.get_next_var_id(n)
     n2 = t_fresh.get_next_var_id(n1)
@@ -207,15 +203,3 @@ def new_var(typ: Typ, n):
     return TypVar(n1), n1 + 1
 
 
-def parse_typ(json):
-    if isinstance(json, Typ):
-        return json
-    if isinstance(json, str):
-        assert len(json) > 0
-        return TypSymbol(json) if json[0].isupper() else TypVar(json)
-    elif isinstance(json, int):
-        return TypVar(json)
-    elif isinstance(json, Sequence):
-        return TypTerm(tuple(parse_typ(x) for x in json))
-    else:
-        raise ValueError("Unsupported input value %s" % json)

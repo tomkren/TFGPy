@@ -1,4 +1,6 @@
 import unittest
+
+from parsers import parse_typ
 from typ import *
 
 

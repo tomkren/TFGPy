@@ -2,8 +2,7 @@ import copy
 from collections import namedtuple
 
 import utils
-from typ import Typ, TypSymbol, TypVar, TypTerm, parse_typ
-
+from typ import Typ, TypSymbol, TypVar, TypTerm
 
 PreTs1Res = namedtuple('PreTs1Res', ['sym', 'sub'])
 Ts1Res = namedtuple('Ts1Res', ['sym', 'sub', 'n'])
@@ -138,11 +137,6 @@ def dot(g, f):
             ret[f_key] = gf_val
 
     return Sub(ret)
-
-
-def parse_sub(d):
-    table = {parse_typ(k): parse_typ(v) for k, v in d.items()}
-    return Sub(table)
 
 
 class Mover:

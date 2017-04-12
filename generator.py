@@ -1,9 +1,8 @@
 from collections import OrderedDict
-from collections import namedtuple
 
 from context import Context
 from sub import mgu, Mover, SubRes, PreTs1Res
-from typ import Typ, fresh, new_var
+from typ import Typ, fresh
 
 
 def ts1_static(gamma: Context, typ: Typ, n):
