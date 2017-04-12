@@ -12,10 +12,11 @@ def ts_1(gamma, typ, n):
     ts1_res = Mover.move_pre_ts1_results(typ, n, pre_ts1_res)
 
     ret = [TsRes(tree=Leaf(tr.sym, tr.sub(typ)),
-                  sub=tr.sub,
-                  n=tr.n) for tr in ts1_res]
+                 sub=tr.sub,
+                 n=tr.n) for tr in ts1_res]
 
     return ret
+
 
 def ts_ij(gamma, i, j, typ, n):
     ret = []
@@ -38,7 +39,7 @@ def ts(gamma, k, typ, n):
         return ts_1(gamma, typ, n)
 
     ret = []
-    for i in range(1, k - 1):
+    for i in range(1, k):
         ret.extend(ts_ij(gamma, i, k - i, typ, n))
 
     return Mover.move_ts_results(typ, n, ret)

@@ -7,14 +7,12 @@ from typ import Typ, fresh
 
 def ts1_static(gamma: Context, typ: Typ, n):
     ret = []
-    for sym in gamma.ctx.values():
-        f = fresh(sym.typ, typ, n)
+    for ctx_declaration in gamma.ctx.values():
+        f = fresh(ctx_declaration.typ, typ, n)
         mu = mgu(typ, f.typ)
         if not mu.is_failed():
             sigma = mu.restrict(typ)
-            ret.append(PreTs1Res(sym, sigma))
-
-
+            ret.append(PreTs1Res(ctx_declaration.sym, sigma))
     return ret
 
 
