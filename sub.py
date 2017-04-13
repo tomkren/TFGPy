@@ -97,6 +97,12 @@ class Sub:
     def __call__(self, typ):
         return typ.apply_sub(self)
 
+    def __hash__(self):
+        if self.fail_msg is not None:
+            raise RuntimeError("Hashing failed sub.")
+
+        return hash(tuple(sorted(repr(it) for it in self.table.items())))
+
     def restrict(self, typ):
         if self.is_failed():
             raise RuntimeError("Restrict on a failed %s" % repr(self))
@@ -151,7 +157,7 @@ class Mover:
         self.tnvi_0 = typ.get_next_var_id(0)
         self.tnvi_n = max(self.tnvi_0, n)
 
-    def __call__(self, sub):
+    def make_delta(self, sub):
         codomain_vars = utils.union_sets(t.get_vars() for t in sub.table.values())
 
         delta_table = {}
@@ -164,14 +170,26 @@ class Mover:
                 delta_table[var] = TypVar(nvi)
                 nvi += 1
 
-        moved_sub = dot(Sub(delta_table), sub).restrict(self.typ)
+        return Sub(delta_table), nvi
 
+    def move_sub(self, sub):
+        delta, nvi = self.make_delta(sub)
+
+        moved_sub = dot(delta, sub).restrict(self.typ)
         return MoverRes(moved_sub, nvi)
+
+    def move_sub_n_tree(self, sub, tree):
+        delta, nvi = self.make_delta(sub)
+
+        moved_sub = dot(delta, sub).restrict(self.typ)
+        moved_tree = tree.apply_sub(delta)
+
+        return MoverRes(moved_sub, nvi), moved_tree
 
     @staticmethod
     def move_results(typ: Typ, n, results, zipper):
         m = Mover(typ, n)
-        return [zipper(res, m(res.sub)) for res in results]
+        return [zipper(res, m.move_sub(res.sub)) for res in results]
 
     @staticmethod
     def move_pre_sub_results(typ, n, pre_sub_results):
@@ -187,9 +205,14 @@ class Mover:
 
     @staticmethod
     def move_ts_results(typ, n, ts_results):
-        return Mover.move_results(typ, n, ts_results, (
-            lambda tsr, mr: TsRes(tsr.tree, mr.sub, mr.n)
-        ))
+        m = Mover(typ, n)
+        ret = []
+
+        for res in ts_results:
+            mr, mtree = m.move_sub_n_tree(res.sub, res.tree)
+            ret.append(TsRes(mtree, mr.sub, mr.n))
+
+        return ret
 
 
 if __name__ == "__main__":

@@ -1,7 +1,7 @@
 import unittest
 from collections import OrderedDict
 
-from generator_static import ts
+from generator_static import ts, subs, get_num
 from parsers import parse_ctx, parse_typ
 
 
@@ -31,22 +31,31 @@ def d2():
 
 
 class TestStaticGen(unittest.TestCase):
-    def test(self):
-        pass
+    def test_d(self):
+        for goal, gamma in [d1(), d2()]:
+            for k in range(1, 5):
+                results = ts(gamma, k, goal, 0)
+                num = get_num(gamma, k, goal)
+                self.assertEqual(num, len(results))
+                for t_res in results:
+                    self.assertTrue(t_res.tree.is_well_typed(gamma))
 
 
 if __name__ == "__main__":
-    # unittest.main()
+    #unittest.main()
 
-    goal, gamma = d1()
-    print(gamma)
-    print('=' * 20)
-    print(goal)
-    print('=' * 20)
-    for k in range(1, 6):
-        res = ts(gamma, k, goal, 0)
-        print(k, ":", len(res))
-        for a in res:
-            print(a.tree)
-            assert a.tree.is_well_typed(gamma)
-        pass
+    def f():
+        goal, gamma = d1()
+        if False:
+            print(gamma)
+            print('=' * 20)
+            print(goal)
+            print('=' * 20)
+        for k in range(1, 7):
+            num = get_num(gamma, k, goal)
+            results = ts(gamma, k, goal, 0)
+            assert num == len(results)
+            for t_res in results:
+                assert t_res.tree.is_well_typed(gamma)
+
+    f()
