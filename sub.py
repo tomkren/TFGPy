@@ -161,7 +161,7 @@ class Mover:
         return self.tnvi_n > self.tnvi_0
 
     def make_delta(self, sub):
-        codomain_vars = utils.union_sets(t.get_vars() for t in sub.table.values())
+        codomain_vars = utils.update_union((t.get_vars() for t in sub.table.values()), set())
 
         delta_table = {}
         nvi = self.tnvi_n

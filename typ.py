@@ -1,6 +1,8 @@
+from collections import OrderedDict
 from collections import namedtuple
 
 import utils
+import sub
 
 FreshResult = namedtuple('FreshResult', ['typ', 'n'])
 
@@ -22,7 +24,11 @@ class Typ:
     def __hash__(self):
         raise NotImplementedError
 
-    def gather_leaves(self, pred):
+    def gather_leaves(self, pred, make_new):
+        """
+        :param make_new: constructor for a set-like structure,
+                         which needs to have update method.
+        """
         raise NotImplementedError
 
     def get_sub_keys(self):
@@ -31,7 +37,8 @@ class Typ:
 
     def get_vars(self):
         return self.gather_leaves(
-            lambda leaf: isinstance(leaf, TypVar)
+            lambda leaf: isinstance(leaf, TypVar),
+            lambda *args: set(args)
         )
 
     def get_next_var_id(self, acc):
@@ -71,10 +78,10 @@ class TypVar(Typ):
     def __repr__(self):
         return "TypVar(%s)" % (repr(self.name))
 
-    def gather_leaves(self, pred):
+    def gather_leaves(self, pred, make_new):
         if pred(self):
-            return {self}
-        return set()
+            return make_new(self)
+        return make_new()
 
     def get_next_var_id(self, acc=0):
         if isinstance(self.name, int):
@@ -117,10 +124,10 @@ class TypSymbol(Typ):
     def __repr__(self):
         return "TypSymbol(%s)" % (repr(self.name))
 
-    def gather_leaves(self, pred):
+    def gather_leaves(self, pred, make_new):
         if pred(self):
-            return {self}
-        return set()
+            return make_new(self)
+        return make_new()
 
     def get_next_var_id(self, acc=0):
         return acc
@@ -166,8 +173,9 @@ class TypTerm(Typ):
     def __repr__(self):
         return "TypTerm(%s)" % (repr(self.arguments))
 
-    def gather_leaves(self, pred):
-        return utils.union_sets(a.gather_leaves(pred) for a in self.arguments)
+    def gather_leaves(self, pred, make_new):
+        return utils.update_union((a.gather_leaves(pred, make_new) for a in self.arguments),
+                                  make_new())
 
     def get_next_var_id(self, acc=0):
         return max(a.get_next_var_id(acc) for a in self.arguments)
@@ -215,3 +223,24 @@ def new_var(typ: Typ, n):
     n1 = typ.get_next_var_id(n)
 
     return TypVar(n1), n1 + 1
+
+
+def make_enum_table(iterable, make_new):
+    table = {}
+    for num, val in enumerate(iterable):
+        table[val] = make_new(num)
+    return table
+
+
+def make_var_bijection(typ):
+    ordered_vars = typ.gather_leaves(
+        lambda leaf: isinstance(leaf, TypVar),
+        lambda *args: OrderedDict((a, True) for a in args)
+    )
+    proto_table = make_enum_table(ordered_vars.keys(), TypVar)
+    table, rev_table = utils.construct_bijection(proto_table)
+
+    return sub.Sub(table), sub.Sub(rev_table)
+
+def get_norm_sub(typ):
+    pass

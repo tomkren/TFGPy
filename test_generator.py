@@ -1,4 +1,5 @@
 import unittest
+import time
 from collections import OrderedDict
 
 from generator import Generator

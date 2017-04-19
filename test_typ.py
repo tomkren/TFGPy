@@ -63,6 +63,11 @@ class TestTyp(unittest.TestCase):
         self.assertEqual(parse_typ(['x1', [['A', 'B'], 'x2', 'x1']]), typ)
         self.assertEqual(parse_typ(['x1', [('A', 'B'), 'x2', 'x1']]), typ)
 
+    def test_normalize(self):
+        a, b = TypTerm((TypVar(666), TypVar(0))), TypTerm((TypVar(0), TypVar(1)))
+        sf, st = make_var_bijection(a)
+        c = a.apply_sub(sf)
+        self.assertEqual(c, b)
 
 if __name__ == "__main__":
     unittest.main()
