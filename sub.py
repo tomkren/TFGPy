@@ -157,6 +157,9 @@ class Mover:
         self.tnvi_0 = typ.get_next_var_id(0)
         self.tnvi_n = max(self.tnvi_0, n)
 
+    def is_move_needed(self):
+        return self.tnvi_n > self.tnvi_0
+
     def make_delta(self, sub):
         codomain_vars = utils.union_sets(t.get_vars() for t in sub.table.values())
 
@@ -212,6 +215,31 @@ class Mover:
             mr, mtree = m.move_sub_n_tree(res.sub, res.tree)
             ret.append(TsRes(mtree, mr.sub, mr.n))
 
+        return ret
+
+    @staticmethod
+    def move_sub_results_0(typ, n, results):
+        m = Mover(typ, n)
+        if not m.is_move_needed():
+            return results
+
+        ret = []
+        for res in results:
+            mr = m.move_sub(res.sub)
+            ret.append(SubRes(res.num, mr.sub, mr.n))
+        return ret
+
+    # NOTE possibly refactor into zipper
+    @staticmethod
+    def move_ts1_results_0(typ, n, results):
+        m = Mover(typ, n)
+        if not m.is_move_needed():
+            return results
+
+        ret = []
+        for res in results:
+            mr = m.move_sub(res.sub)
+            ret.append(Ts1Res(res.sym, mr.sub, mr.n))
         return ret
 
 

@@ -53,7 +53,6 @@ def subs_1(gamma, typ, n):
 
 def subs_ij(gamma, i, j, typ, n):
     ret = []
-
     alpha, n1 = new_var(typ, n)
     typ_f = TypTerm.make_arrow(alpha, typ)
 
