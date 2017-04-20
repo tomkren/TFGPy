@@ -12,12 +12,8 @@ def mk_table(a, b):
 def tbij(tester, f, t, test_bf, test_bt):
     a, b = utils.construct_bijection(mk_table(f, t))
 
-    tester.assertEqual(list(a.keys()), test_bf)
-    tester.assertEqual(list(a.values()), test_bt)
-
-    rev = sorted((v, k) for k, v in zip(test_bf, test_bt))
-    tester.assertEqual(list(b.keys()), [t[0] for t in rev])
-    tester.assertEqual(list(b.values()), [t[1] for t in rev])
+    tester.assertEqual(set(a.items()), set(zip(test_bf, test_bt)))
+    tester.assertEqual(set(b.items()), set(zip(test_bt, test_bf)))
 
 
 class TestBijection(unittest.TestCase):
