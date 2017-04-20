@@ -4,6 +4,7 @@ from collections import OrderedDict
 
 import normalization
 import typ
+from cache import CacheNop
 from generator import Generator
 from generator_static import ts, get_num
 from parsers import parse_ctx, parse_typ
@@ -18,7 +19,8 @@ def d1():
                        (("a", "->", "b"), "->", ("a", "->", "c")))),
                 ("k", ("a", "->", ("b", "->", "a"))),
                 ("seri", (("Dag", 'a', 'b'), '->', (("Dag", 'b', 'c'), '->', ("Dag", 'a', 'c')))),
-                ("para", (("Dag", 'a', 'b'), '->', (("Dag", 'c', 'd'), '->', ("Dag", ('P', 'a', 'c'), ('P', 'b', 'd'))))),
+                ("para",
+                 (("Dag", 'a', 'b'), '->', (("Dag", 'c', 'd'), '->', ("Dag", ('P', 'a', 'c'), ('P', 'b', 'd'))))),
                 ("mkDag", (("a", "->", "b"), '->', ("Dag", "a", "b"))),
                 ("deDag", (("Dag", "a", "b"), '->', ("a", "->", "b"),)),
                 ("mkP", ("a", "->", ("b", "->", ('P', "a", 'b')))),
@@ -38,11 +40,24 @@ def d2():
             5)
 
 
+def d3():
+    return (parse_typ(('a', '->', 'b')),
+            parse_ctx(OrderedDict([
+                ("s", (("a", "->", ("b", "->", "c")), '->',
+                       (("a", "->", "b"), "->", ("a", "->", "c")))),
+                ("k", ("a", "->", ("b", "->", "a"))),
+            ])),
+            5)
+
+
 class TestGen(unittest.TestCase):
     def test_d(self):
-        for goal, gamma, max_k in [d1(), d2()]:
-            g = Generator(gamma, normalization.NormalizatorNop)
-            gnf = Generator(gamma, normalization.Normalizator)
+        for goal, gamma, max_k in [d1(), d2(), d3()]:
+            g = Generator(gamma, normalizator=normalization.NormalizatorNop)
+            gnf = Generator(gamma, normalizator=normalization.Normalizator)
+            gNC = Generator(gamma, normalizator=normalization.NormalizatorNop, cache=CacheNop)
+            gnfNC = Generator(gamma, normalizator=normalization.Normalizator, cache=CacheNop)
+
             res = []
             for k in range(1, max_k + 1):
                 # check static generator
@@ -58,8 +73,13 @@ class TestGen(unittest.TestCase):
                 res.append(g_num)
 
                 # check generator in nf
-                gnf_num = gnf.get_num(k, goal)
-                self.assertEqual(s_num, gnf_num)
+                self.assertEqual(s_num, gnf.get_num(k, goal))
+
+                # check generator without cache
+                self.assertEqual(s_num, gNC.get_num(k, goal))
+
+                # check generator in nf without cache
+                self.assertEqual(s_num, gnfNC.get_num(k, goal))
 
             # second run should have the same results
             # but it should be much faster

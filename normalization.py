@@ -1,4 +1,5 @@
 import sub
+from tracer_deco import tracer_deco
 from typ import make_norm_bijection
 
 
@@ -6,7 +7,8 @@ class Normalizator:
     def __init__(self, typ):
         self.typ = typ
         self.sub_to_nf, self.sub_from_nf = make_norm_bijection(typ)
-        self.typ_nf = self.typ.apply_sub(self.sub_from_nf)
+
+        self.typ_nf = self.sub_to_nf(self.typ)
         self.tnvi = typ.get_next_var_id()
 
     def denormalize(self, nf_sub_results, n):
@@ -31,4 +33,4 @@ class NormalizatorNop:
         self.typ_nf = typ
 
     def denormalize(self, nf_sub_results, n):
-        return nf_sub_results
+        return [r for r in nf_sub_results]

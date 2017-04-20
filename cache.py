@@ -69,3 +69,17 @@ class Cache:
             sid = len(self.substitutions) - 1
             self.sub2id[sub] = sid
         return sid
+
+
+class CacheNop:
+    def __init__(self, gen):
+        self.gen = gen
+
+    def get_num(self, k, typ):
+        return sum(sd.num for sd in self.gen.subs_compute(k, typ, 0))
+
+    def subs(self, k, typ, n):
+        return self.gen.subs_compute(k, typ, n)
+
+    def ts_1(self, typ, n):
+        return self.gen.ts_1_compute(typ, n)

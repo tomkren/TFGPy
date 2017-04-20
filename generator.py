@@ -3,7 +3,9 @@ from collections import OrderedDict
 import sub
 from cache import Cache
 from context import Context
+from normalization import Normalizator
 from sub import mgu, Mover, SubRes, PreTs1Res, PreSubRes
+from tracer_deco import tracer_deco
 from typ import Typ, fresh, new_var, TypTerm
 
 
@@ -31,14 +33,13 @@ def pack(typ, n, pre_sub_results):
             assert res.n == val.n
             results[sigma] = SubRes(val.num + res.num, val.sub, val.n)
 
-    # NOTE: watchout, returning generator
-    return results.values()
+    return list(results.values())
 
 
 class Generator:
-    def __init__(self, gamma, normalizator):
+    def __init__(self, gamma, cache=Cache, normalizator=Normalizator):
         self.gamma = gamma
-        self.cache = Cache(self)
+        self.cache = cache(self)
         self.normalizator = normalizator
 
     def get_num(self, k, typ):
@@ -49,6 +50,7 @@ class Generator:
         pre_ts1_res = ts1_static(self.gamma, typ, n)
         return Mover.move_pre_ts1_results(typ, n, pre_ts1_res)
 
+    @tracer_deco()
     def subs_ij(self, i, j, typ, n):
         ret = []
         alpha, n1 = new_var(typ, n)
@@ -63,11 +65,15 @@ class Generator:
                 ret.append(sub.PreSubRes(num_fx, sigma_fx))
         return ret
 
+    @tracer_deco(log_ret=True, ret_pp=lambda results: "\n".join("NUM=%d\tN=%d\n%s"%(r.num, r.n, r.sub) for r in results))
     def subs(self, k, typ, n):
         nf = self.normalizator(typ)
         results_nf = self.cache.subs(k, nf.typ_nf, n)
-        return nf.denormalize(results_nf, n)
+        ret = nf.denormalize(results_nf, n)
 
+        return ret
+
+    @tracer_deco()
     def subs_compute(self, k, typ, n):
         assert k >= 1
         if k == 1:

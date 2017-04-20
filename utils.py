@@ -48,3 +48,5 @@ def make_enum_table(iterable, make_new):
     for num, val in enumerate(iterable):
         table[val] = make_new(num)
     return table
+
+
