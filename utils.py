@@ -14,6 +14,12 @@ def construct_bijection(tab):
         table[source] = target
         rev_table[target] = source
 
+    # JM: the do_todo and co_todo construction
+    # might be possible to rewrite like this
+    # but TODO check correctness
+    #do_todo = set(rev_table.keys()) - set(table.keys())
+    #co_todo = set(table.keys()) - set(rev_table.keys())
+
     do_todo, co_todo = [], []
     for source, target in tab.items():
         if source == target:
@@ -35,3 +41,10 @@ def construct_bijection(tab):
         rev_table[target] = source
 
     return table, rev_table
+
+
+def make_enum_table(iterable, make_new):
+    table = {}
+    for num, val in enumerate(iterable):
+        table[val] = make_new(num)
+    return table

@@ -65,7 +65,7 @@ class TestTyp(unittest.TestCase):
 
     def test_normalize(self):
         a, b = TypTerm((TypVar(666), TypVar(0))), TypTerm((TypVar(0), TypVar(1)))
-        sf, st = make_var_bijection(a)
+        sf, st = make_norm_bijection(a)
         c = a.apply_sub(sf)
         self.assertEqual(c, b)
 

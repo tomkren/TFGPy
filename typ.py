@@ -1,8 +1,9 @@
 from collections import OrderedDict
 from collections import namedtuple
 
-import utils
 import sub
+import utils
+from utils import make_enum_table
 
 FreshResult = namedtuple('FreshResult', ['typ', 'n'])
 
@@ -225,14 +226,7 @@ def new_var(typ: Typ, n):
     return TypVar(n1), n1 + 1
 
 
-def make_enum_table(iterable, make_new):
-    table = {}
-    for num, val in enumerate(iterable):
-        table[val] = make_new(num)
-    return table
-
-
-def make_var_bijection(typ):
+def make_norm_bijection(typ):
     ordered_vars = typ.gather_leaves(
         lambda leaf: isinstance(leaf, TypVar),
         lambda *args: OrderedDict((a, True) for a in args)
@@ -242,5 +236,3 @@ def make_var_bijection(typ):
 
     return sub.Sub(table), sub.Sub(rev_table)
 
-def get_norm_sub(typ):
-    pass

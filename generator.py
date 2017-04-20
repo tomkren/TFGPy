@@ -36,20 +36,14 @@ def pack(typ, n, pre_sub_results):
 
 
 class Generator:
-    def __init__(self, gamma):
+    def __init__(self, gamma, normalizator):
         self.gamma = gamma
         self.cache = Cache(self)
+        self.normalizator = normalizator
 
-    def subs_compute(self, k, typ, n):
-        assert k >= 1
-        if k == 1:
-            ret = (PreSubRes(1, res.sub) for res in self.cache.ts_1(typ, n))
-        else:
-            ret = []
-            for i in range(1, k):
-                ret.extend(self.subs_ij(i, k - i, typ, n))
-
-        return pack(typ, n, ret)
+    def get_num(self, k, typ):
+        nf = self.normalizator(typ)
+        return self.cache.get_num(k, nf.typ_nf)
 
     def ts_1_compute(self, typ, n):
         pre_ts1_res = ts1_static(self.gamma, typ, n)
@@ -70,9 +64,20 @@ class Generator:
         return ret
 
     def subs(self, k, typ, n):
-        # TODO normalize
-        return self.cache.subs(k, typ, n)
+        nf = self.normalizator(typ)
+        results_nf = self.cache.subs(k, nf.typ_nf, n)
+        return nf.denormalize(results_nf, n)
 
-    def get_num(self, k, goal):
-        return self.cache.get_num(k, goal)
+    def subs_compute(self, k, typ, n):
+        assert k >= 1
+        if k == 1:
+            ret = (PreSubRes(1, res.sub) for res in self.cache.ts_1(typ, n))
+        else:
+            ret = []
+            for i in range(1, k):
+                ret.extend(self.subs_ij(i, k - i, typ, n))
+
+        return pack(typ, n, ret)
+
+
 
