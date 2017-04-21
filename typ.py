@@ -160,9 +160,6 @@ class TypSymbol(Typ):
 
 
 class TypSkolem(TypSymbol):
-    def apply_mini_sub(self, key, typ):
-        assert False
-
     def __repr__(self):
         return "TypSkolem(%s)" % (repr(self.name))
 

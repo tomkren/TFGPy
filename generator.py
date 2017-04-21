@@ -92,7 +92,7 @@ class Generator:
         num = self.get_num(k, typ)
         if not num:
             return None
-        return self.gen_one_raw(random.randrange(num), k, typ, n)
+        return self.gen_one_raw(random.randrange(num), k, typ, n)[0]
 
     def gen_one_raw(self, ball, k, typ, n):
         assert k >= 1

@@ -63,7 +63,7 @@ class TestGen(unittest.TestCase):
             for k in range(1, max_k + 1):
                 # check static generator
                 s_num = get_num(gamma, k, goal)
-                s_trees = ts(gamma, k, goal, 0)
+                s_trees = set(ts(gamma, k, goal, 0))
                 self.assertEqual(s_num, len(s_trees))
                 for t in s_trees:
                     self.assertTrue(t.tree.is_well_typed(gamma))
@@ -75,6 +75,13 @@ class TestGen(unittest.TestCase):
 
                 # check generator in nf
                 self.assertEqual(s_num, gnf.get_num(k, goal))
+                for i in range(10):
+                    t = gnf.gen_one(k, goal)
+                    if s_num == 0:
+                        self.assertIsNone(t)
+                    else:
+                        self.assertTrue(t.is_well_typed())
+                        self.assertIn(t, s_trees)
 
                 # check generator without cache
                 self.assertEqual(s_num, gNC.get_num(k, goal))
