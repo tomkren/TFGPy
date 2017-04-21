@@ -12,6 +12,7 @@ TsRes = namedtuple('TsRes', ['tree', 'sub', 'n'])
 
 PreSubRes = namedtuple('PreSubRes', ['num', 'sub'])
 SubRes = namedtuple('SubRes', ['num', 'sub', 'n'])
+SubRes.__str__ = lambda self: "SubRes<num=%s, n=%s>:\n%s"%(self.num, self.n, self.sub)
 
 MoverRes = namedtuple('MoverRes', ['sub', 'n'])
 

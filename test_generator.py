@@ -121,7 +121,7 @@ def check_generators_have_same_outputs(generators, goal, max_k):
 
 
 if __name__ == "__main__":
-    # unittest.main()
+    unittest.main()
 
     if not True:
         goal, gamma, max_k = d3()  # d1()
@@ -136,7 +136,7 @@ if __name__ == "__main__":
 
         check_generators_have_same_outputs(gens, goal, max_k)
 
-    if True:
+    if not True:
         import time
 
         goal, gamma, max_k = d3() # d1()
@@ -162,8 +162,7 @@ if __name__ == "__main__":
                 print('NUM =', num, '\n')
 
                 for sub_res in sub_results:
-                    print('num =', sub_res.num, ', n =', sub_res.n)
-                    print(str(sub_res.sub), '\n')
+                    print(sub_res)
 
             print("\ntime: %.2f s\n" % (time.time() - a))
 
