@@ -57,6 +57,14 @@ class Typ:
     def apply_sub(self, sub):
         raise NotImplementedError
 
+    def skolemize(self):
+        acc = {}
+        skolemized = self._skolemize_acc(acc)
+        return skolemized, sub.Sub(acc)
+
+    def _skolemize_acc(self, acc):
+        raise NotImplementedError
+
 
 class TypVar(Typ):
     def __init__(self, name):
@@ -74,7 +82,7 @@ class TypVar(Typ):
         return self == var
 
     def __hash__(self):
-        return hash(self.name)
+        return hash(repr(self))
 
     def __repr__(self):
         return "TypVar(%s)" % (repr(self.name))
@@ -103,7 +111,12 @@ class TypVar(Typ):
         return self
 
     def __str__(self):
-        return ".%s" % self.name
+        return "$%s" % self.name
+
+    def _skolemize_acc(self, acc):
+        ret = TypSkolem(self.name)
+        acc[ret] = self
+        return ret
 
 
 class TypSymbol(Typ):
@@ -120,10 +133,13 @@ class TypSymbol(Typ):
         return False
 
     def __hash__(self):
-        return hash(self.name)
+        return hash(repr(self))
 
     def __repr__(self):
         return "TypSymbol(%s)" % (repr(self.name))
+
+    def __str__(self):
+        return str(self.name)
 
     def gather_leaves(self, pred, make_new):
         if pred(self):
@@ -139,8 +155,24 @@ class TypSymbol(Typ):
     def apply_sub(self, sub):
         return self
 
+    def _skolemize_acc(self, acc):
+        return self
+
+
+class TypSkolem(TypSymbol):
+    def apply_mini_sub(self, key, typ):
+        assert False
+
+    def __repr__(self):
+        return "TypSkolem(%s)" % (repr(self.name))
+
     def __str__(self):
-        return str(self.name)
+        return "_%s" % self.name
+
+    def apply_sub(self, sub):
+        if self in sub.table:
+            return sub.table[self]
+        return self
 
 
 T_ARROW = TypSymbol('->')
@@ -174,6 +206,13 @@ class TypTerm(Typ):
     def __repr__(self):
         return "TypTerm(%s)" % (repr(self.arguments))
 
+    def __str__(self):
+        if is_fun_type(self):
+            op, l, r = self.arguments
+            return "(%s %s %s)" % (l, op, r)
+
+        return "(%s)" % " ".join(str(a) for a in self.arguments)
+
     def gather_leaves(self, pred, make_new):
         return utils.update_union((a.gather_leaves(pred, make_new) for a in self.arguments),
                                   make_new())
@@ -196,12 +235,9 @@ class TypTerm(Typ):
                 return TypTerm(children)
         return self
 
-    def __str__(self):
-        if is_fun_type(self):
-            op, l, r = self.arguments
-            return "(%s %s %s)" % (l, op, r)
-
-        return "(%s)" % " ".join(str(a) for a in self.arguments)
+    def _skolemize_acc(self, acc):
+        # TODO if apply_sub is more efficient with id checks => apply it here as well
+        return TypTerm(tuple(a._skolemize_acc(acc) for a in self.arguments))
 
 
 def is_fun_type(typ):
@@ -227,6 +263,7 @@ def new_var(typ: Typ, n):
 
 
 def make_norm_bijection(typ):
+    # TODO SKOLEM
     ordered_vars = typ.gather_leaves(
         lambda leaf: isinstance(leaf, TypVar),
         lambda *args: OrderedDict((a, True) for a in args)
@@ -235,4 +272,3 @@ def make_norm_bijection(typ):
     table, rev_table = utils.construct_bijection(proto_table)
 
     return sub.Sub(table), sub.Sub(rev_table)
-

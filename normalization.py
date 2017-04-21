@@ -11,6 +11,9 @@ class Normalizator:
         self.typ_nf = self.sub_to_nf(self.typ)
         self.tnvi = typ.get_next_var_id()
 
+    def denormalize_tree(self, tree):
+        return tree.apply_sub(self.sub_from_nf)
+
     def denormalize(self, nf_sub_results, n):
         sub_results = [self.denormalize_one(r, n) for r in nf_sub_results]
         return sub.Mover.move_sub_results(self.typ, n, sub_results)
