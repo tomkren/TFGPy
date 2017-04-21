@@ -12,7 +12,8 @@ class Normalizator:
         self.tnvi = typ.get_next_var_id()
 
     def denormalize(self, nf_sub_results, n):
-        return [self.denormalize_one(r, n) for r in nf_sub_results]
+        sub_results = [self.denormalize_one(r, n) for r in nf_sub_results]
+        return sub.Mover.move_sub_results(self.typ, n, sub_results)
 
     def denormalize_one(self, nf_sub_res, n):
         sigma_nf = nf_sub_res.sub

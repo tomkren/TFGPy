@@ -207,6 +207,12 @@ class Mover:
         ))
 
     @staticmethod
+    def move_sub_results(typ, n, sub_results):
+        return Mover.move_results(typ, n, sub_results, (
+            lambda sub_res, mr: SubRes(sub_res.num, mr.sub, mr.n)
+        ))
+
+    @staticmethod
     def move_ts_results(typ, n, ts_results):
         m = Mover(typ, n)
         ret = []

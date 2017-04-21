@@ -4,7 +4,8 @@ from collections import OrderedDict
 
 import normalization
 import typ
-from cache import CacheNop
+from cache import Cache, CacheNop
+from normalization import Normalizator, NormalizatorNop
 from generator import Generator
 from generator_static import ts, get_num
 from parsers import parse_ctx, parse_typ
@@ -91,25 +92,84 @@ class TestGen(unittest.TestCase):
             self.assertLess(end - start, REALLY_SHORT_TIME)
 
 
-if __name__ == "__main__":
-    unittest.main()
+def check_generators_have_same_outputs(generators, goal, max_k):
 
-    if False:
+    def check_eq(xs):
+        return all(x == xs[0] for x in xs)
+
+    def check_eq_info(xs):
+        if len(xs) == 0:
+            return True
+
+        head = xs[0]
+        for x in xs:
+            if x != head:
+                print('!!!\n', str(x), '\n', str(head))
+                return False
+        return True
+
+    for k in range(1, max_k + 1):
+        print('-- k =', k, '-' * 30)
+        sub_results_s = []
+        for gen_name, gen in generators.items():
+            print(' ', gen_name, '...', end='')
+            sub_results = gen.subs(k, goal, 0)
+            print('done')
+            sub_results_s.append(sub_results)
+
+        print(check_eq_info(sub_results_s))
+
+
+if __name__ == "__main__":
+    # unittest.main()
+
+    if not True:
+        goal, gamma, max_k = d3()  # d1()
+        # max_k = 2
+
+        gens = {
+            'gen_full': Generator(gamma, cache=Cache, normalizator=Normalizator),
+            'gen_cache_only': Generator(gamma, cache=Cache, normalizator=NormalizatorNop),
+            'gen_norm_only': Generator(gamma, cache=CacheNop, normalizator=Normalizator),
+            'gen_lame': Generator(gamma, cache=CacheNop, normalizator=NormalizatorNop)
+        }
+
+        check_generators_have_same_outputs(gens, goal, max_k)
+
+    if True:
         import time
 
-        goal, gamma = d1()
-        g = Generator(gamma)
+        goal, gamma, max_k = d3() # d1()
+        max_k = 2
+
+        gen = Generator(gamma, cache=Cache, normalizator=Normalizator)
+
         if True:
             print(gamma)
-            print('=' * 20)
+            print('=' * 30)
             print(goal)
-            print('=' * 20)
-        for k in range(1, 7):
-            num = g.get_num(k, goal)
-            print(k, num)
+            print('=' * 30, '\n')
 
-        a = time.time()
-        for k in range(1, 7):
-            num = g.get_num(k, goal)
-            print(k, num)
-        print("%.2f" % (time.time() - a))
+        def generate_stuff():
+            a = time.time()
+            for k in range(1, max_k+1):
+
+                print('-- k =', k, '-'*30)
+
+                num = gen.get_num(k, goal)
+                sub_results = gen.subs(k, goal, 0)
+
+                print('NUM =', num, '\n')
+
+                for sub_res in sub_results:
+                    print('num =', sub_res.num, ', n =', sub_res.n)
+                    print(str(sub_res.sub), '\n')
+
+            print("\ntime: %.2f s\n" % (time.time() - a))
+
+        generate_stuff()
+
+        if False:
+            print('=' * 40, '\n')
+            generate_stuff()
+
