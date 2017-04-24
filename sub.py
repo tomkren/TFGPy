@@ -9,6 +9,7 @@ Ts1Res = namedtuple('Ts1Res', ['sym', 'sub', 'n'])
 
 # PreTsRes = namedtuple('PreTsRes', ['tree', 'sub'])
 TsRes = namedtuple('TsRes', ['tree', 'sub', 'n'])
+TsRes.__str__ = lambda self: "TsRes<n=%s>:\n%s\n%s"%(self.n, self.tree, self.sub)
 
 PreSubRes = namedtuple('PreSubRes', ['num', 'sub'])
 SubRes = namedtuple('SubRes', ['num', 'sub', 'n'])

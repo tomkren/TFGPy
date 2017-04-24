@@ -13,6 +13,19 @@ class AppTree:
     def apply_sub(self, sub):
         raise NotImplementedError
 
+    def __eq__(self, other):
+        if self is other:
+            return True
+        if type(other) != type(self):
+            return False
+        return self._eq_content(other)
+
+    def _eq_content(self, other):
+        raise NotImplementedError
+
+    def __hash__(self):
+        raise NotImplementedError
+
 
 class App(AppTree):
     def __init__(self, fun, arg, typ):
@@ -23,6 +36,12 @@ class App(AppTree):
 
     def __repr__(self):
         return "App(%s, %s, %s)" % (repr(self.fun), repr(self.arg), repr(self.typ))
+
+    def _eq_content(self, other):
+        return self.fun == other.fun and self.arg == other.arg
+
+    def __hash__(self):
+        return 31 * hash(self.fun) + hash(self.arg)
 
     def __str__(self):
         return "(%s %s)" % (self.fun, self.arg)
@@ -51,6 +70,12 @@ class Leaf(AppTree):
 
     def __str__(self):
         return str(self.sym)
+
+    def _eq_content(self, other):
+        return self.sym == other.sym
+
+    def __hash__(self):
+        return hash(self.sym)
 
     def apply_sub(self, sub):
         return Leaf(self.sym, sub(self.typ))

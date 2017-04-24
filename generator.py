@@ -88,11 +88,17 @@ class Generator:
 
         return pack(typ, n, ret)
 
-    def gen_one(self, k, typ, n=0):
+    def gen_one(self, k, typ):
+        ret = self.gen_one_random(k, typ, 0)
+        if ret is None:
+            return None
+        return ret[0]
+
+    def gen_one_random(self, k, typ, n):
         num = self.get_num(k, typ)
         if not num:
             return None
-        return self.gen_one_raw(random.randrange(num), k, typ, n)[0]
+        return self.gen_one_raw(random.randrange(num), k, typ, n)
 
     def gen_one_raw(self, ball, k, typ, n):
         assert k >= 1
@@ -136,8 +142,8 @@ class Generator:
         typ_fs, deskolem_sub_f = res_f.sub(typ_f).skolemize()
         typ_xs, deskolem_sub_x = res_x.sub(typ_x).skolemize()
 
-        s_tree_f, n = self.gen_one(i, typ_fs, res_x.n)
-        s_tree_x, n = self.gen_one(j, typ_xs, n)
+        s_tree_f, n = self.gen_one_random(i, typ_fs, res_x.n)
+        s_tree_x, n = self.gen_one_random(j, typ_xs, n)
 
         assert s_tree_f is not None
         assert s_tree_x is not None
