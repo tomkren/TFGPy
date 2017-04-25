@@ -1,13 +1,6 @@
+from generator import ts1_static
 from sub import mgu
-from typ import fresh, is_fun_type, split_fun_type
-
-
-class UnfinAppTree:
-    def __init__(self, tree, k, len):
-        self.tree = tree
-        self.k = k
-        self.len = len  # todo len spočítat
-    # todo: nebo je lepší prostě k tree přifařit kčko?
+from typ import fresh, is_fun_type, split_fun_type, TypTerm
 
 
 class AppTree:
@@ -32,6 +25,9 @@ class AppTree:
         raise NotImplementedError
 
     def __hash__(self):
+        raise NotImplementedError
+
+    def successors(self, gen, k):
         raise NotImplementedError
 
 
@@ -67,6 +63,20 @@ class App(AppTree):
 
         return False, None
 
+    def successors(self, gen):
+        fun_s = self.fun.successors(gen)
+        if fun_s:
+            ret = []
+            for fs in fun_s:
+                # TODO fs by mela byt pekna datova strukturka
+                ret.append(
+                    App(fs.fun, self.arg, self.typ.apply_sub(fs.sub))
+                )
+
+        s_arg = self.arg.successors(gen)
+
+
+
 
 class Leaf(AppTree):
     def __init__(self, sym, typ):
@@ -97,3 +107,47 @@ class Leaf(AppTree):
         mu = mgu(self.typ, fr.typ)
 
         return not mu.is_failed(), fr.n
+
+    def successors(self, gen):
+        return []
+
+
+class UnfinishedLeaf(Leaf):
+    def __init__(self, typ, k):
+        self.typ = typ
+        assert k > 0
+        self.k = k
+
+    def __repr__(self):
+        return "UnfinishedLeaf(%s, %s)" % (repr(self.typ), self.k)
+
+    def __str__(self):
+        return "%d: %s" % (self.k, self.typ)
+
+    def _eq_content(self, other):
+        return self.typ == other.typ and self.k == other.k
+
+    def __hash__(self):
+        return hash(self.typ) + 31 * hash(self.k)
+
+    def apply_sub(self, sub):
+        raise NotImplementedError
+
+    def is_well_typed_acc(self, gamma, n):
+        return False, None
+
+    def successors(self, gen):
+        if self.k == 1:
+            pre_ts1_results = ts1_static(gen.gamma, self.typ, 0)
+            return [Leaf(tr.sym, tr.sub(self.typ)) for tr in pre_ts1_results]
+        else:
+            alpha = self.typ.get_next_var_id()
+            ret = []
+            for i in range(1, self.k):
+                j = self.k - i
+                fun = UnfinishedLeaf(TypTerm.make_arrow(alpha, self.typ), i)
+                arg = UnfinishedLeaf(alpha, j)
+                app = App(fun, arg, self.typ)
+                # TODO check this app out
+                ret.append(app)
+            return ret

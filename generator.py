@@ -2,7 +2,7 @@ import random
 from collections import OrderedDict
 
 import sub
-from app_tree import Leaf, App
+from app_tree import Leaf, App, AppTree, UnfinishedLeaf
 from cache import Cache
 from context import Context
 from normalization import Normalizator
@@ -20,6 +20,28 @@ def ts1_static(gamma: Context, typ: Typ, n):
             sigma = mu.restrict(typ)
             ret.append(PreTs1Res(ctx_declaration.sym, sigma))
     return ret
+
+
+"""
+def ts1_static_uf(gamma: Context, uf: AppTree, n):
+    if isinstance(uf, UnfinishedLeaf):
+        return ts1_static(gamma, uf.typ, n)
+    if isinstance(uf, Leaf):
+        ret = []
+        for ctx_declaration in gamma.ctx.values():
+            if ctx_declaration.sym == uf.sym:
+
+                f = fresh(ctx_declaration.typ, uf.typ, n)
+                mu = mgu(uf.typ, f.typ)
+                if not mu.is_failed():
+                    sigma = mu.restrict(uf.typ)
+                    ret.append(PreTs1Res(ctx_declaration.sym, sigma))
+        assert len(ret) <= 1
+        return ret
+    else:
+        assert isinstance(uf, App)
+        return []
+"""
 
 
 def pack(typ, n, pre_sub_results):
