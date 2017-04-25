@@ -2,6 +2,14 @@ from sub import mgu
 from typ import fresh, is_fun_type, split_fun_type
 
 
+class UnfinAppTree:
+    def __init__(self, tree, k, len):
+        self.tree = tree
+        self.k = k
+        self.len = len  # todo len spočítat
+    # todo: nebo je lepší prostě k tree přifařit kčko?
+
+
 class AppTree:
     def is_well_typed(self, gamma):
         is_ok, _ = self.is_well_typed_acc(gamma, 0)
