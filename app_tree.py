@@ -27,7 +27,7 @@ class AppTree:
     def __hash__(self):
         raise NotImplementedError
 
-    def successors(self, gen, k):
+    def successors(self, gen):
         raise NotImplementedError
 
 
@@ -76,8 +76,6 @@ class App(AppTree):
         s_arg = self.arg.successors(gen)
 
 
-
-
 class Leaf(AppTree):
     def __init__(self, sym, typ):
         self.sym = sym
@@ -114,7 +112,8 @@ class Leaf(AppTree):
 
 class UnfinishedLeaf(Leaf):
     def __init__(self, typ, k):
-        self.typ = typ
+        super().__init__("?", typ)
+        # self.typ = typ
         assert k > 0
         self.k = k
 
