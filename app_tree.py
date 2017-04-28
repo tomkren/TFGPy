@@ -39,6 +39,9 @@ class AppTree:
     def successors_naive(self, gamma):
         raise NotImplementedError
 
+    def is_skeleton_of(self, tree):
+        raise NotImplementedError
+
 
 class App(AppTree):
     def __init__(self, fun, arg, typ):
@@ -78,6 +81,12 @@ class App(AppTree):
             return [App(fs, self.arg, None) for fs in fun_s]
         return [App(self.fun, ass, None) for ass in self.arg.successors_naive(gamma)]
 
+    def is_skeleton_of(self, tree):
+        return (isinstance(tree, UnfinishedLeaf)
+                or (isinstance(tree, App)
+                    and self.fun.is_skeleton_of(tree.fun)
+                    and self.arg.is_skeleton_of(tree.arg)))
+
 
 class Leaf(AppTree):
     def __init__(self, sym, typ):
@@ -112,6 +121,11 @@ class Leaf(AppTree):
     def successors_naive(self, gamma):
         return []
 
+    def is_skeleton_of(self, tree):
+        return (isinstance(tree, UnfinishedLeaf)
+                or (isinstance(tree, Leaf)
+                    and self.sym == tree.sym))
+
 
 class UnfinishedLeaf(Leaf):
     def __init__(self):
@@ -131,3 +145,6 @@ class UnfinishedLeaf(Leaf):
         for ctx_declaration in gamma.values():
             ret.append(Leaf(ctx_declaration.sym, None))
         return ret
+
+    def is_skeleton_of(self, tree):
+        return True
