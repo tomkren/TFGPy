@@ -42,6 +42,12 @@ class AppTree:
     def is_skeleton_of(self, tree):
         raise NotImplementedError
 
+    def count_symbols(self):
+        raise NotImplementedError
+
+    def is_unfinished(self):
+        raise NotImplementedError
+
 
 class App(AppTree):
     def __init__(self, fun, arg, typ):
@@ -87,6 +93,12 @@ class App(AppTree):
                     and self.fun.is_skeleton_of(tree.fun)
                     and self.arg.is_skeleton_of(tree.arg)))
 
+    def count_symbols(self):
+        return len(self.fun) + len(self.arg)
+
+    def is_unfinished(self):
+        return self.fun.is_unfinished() or self.arg.is_unfinished()
+
 
 class Leaf(AppTree):
     def __init__(self, sym, typ):
@@ -126,6 +138,12 @@ class Leaf(AppTree):
                 or (isinstance(tree, Leaf)
                     and self.sym == tree.sym))
 
+    def count_symbols(self):
+        return 1
+
+    def is_unfinished(self):
+        return False
+
 
 class UnfinishedLeaf(Leaf):
     def __init__(self):
@@ -141,10 +159,19 @@ class UnfinishedLeaf(Leaf):
         return False, None
 
     def successors_naive(self, gamma):
-        ret = [App(UnfinishedLeaf(), UnfinishedLeaf(), None)]
+        ret = [UNFINISHED_APP]
         for ctx_declaration in gamma.ctx.values():
             ret.append(Leaf(ctx_declaration.sym, None))
         return ret
 
     def is_skeleton_of(self, tree):
         return True
+
+    def count_symbols(self):
+        return 0
+
+    def is_unfinished(self):
+        return True
+
+
+UNFINISHED_APP = App(UnfinishedLeaf(), UnfinishedLeaf(), None)

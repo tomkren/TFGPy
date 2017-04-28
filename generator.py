@@ -23,6 +23,7 @@ def ts1_static(gamma: Context, typ: Typ, n):
 
 
 def subs_uf_sym(gamma, n, typ, uf_tree):
+    # TODO factor out uf_tree.sym to args
     ctx_declaration = gamma.ctx.get(uf_tree.sym, None)
     if ctx_declaration is None:
         return []
@@ -145,11 +146,23 @@ class Generator:
             return None
         return ret[0]
 
+    def gen_one_uf(self, uf_tree, k, typ):
+        ret = self.gen_one_random_uf(uf_tree, k, typ, 0)
+        if ret is None:
+            return None
+        return ret[0]
+
     def gen_one_random(self, k, typ, n):
         num = self.get_num(k, typ)
         if not num:
             return None
         return self.gen_one_raw(random.randrange(num), k, typ, n)
+
+    def gen_one_random_uf(self, uf_tree, k, typ, n):
+        num = self.get_num_uf(uf_tree, k, typ)
+        if not num:
+            return None
+        return self.gen_one_raw_uf(uf_tree, random.randrange(num), k, typ, n)
 
     def gen_one_raw(self, ball, k, typ, n):
         assert k >= 1
@@ -163,12 +176,39 @@ class Generator:
         # TODO denormalize n1 as well
         return nf.denormalize_tree(tree), n1
 
+    def gen_one_raw_uf(self, uf_tree, ball, k, typ, n):
+        assert k >= 1
+
+        if isinstance(uf_tree, UnfinishedLeaf):
+            return self.gen_one_raw(ball, k, typ, n)
+
+        if isinstance(uf_tree, Leaf):
+            assert k == 1
+            assert ball == 0
+            return self.gen_one_leaf_uf(uf_tree, typ, n)
+
+        if isinstance(uf_tree, App):
+            assert k > 1
+            return self.gen_one_app_uf(uf_tree, ball, k, typ, n)
+
+        assert False
+
     def gen_one_leaf(self, ball, typ, n):
         for res in self.cache.ts_1(typ, n):
             if not ball:
                 return Leaf(res.sym, res.sub(typ)), res.n
             ball -= 1
         assert False
+
+    def gen_one_leaf_uf(self, uf_tree, typ, n):
+        ctx_declaration = self.gamma.ctx.get(uf_tree.sym, None)
+        assert ctx_declaration is not None
+
+        f = fresh(ctx_declaration.typ, typ, n)
+        mu = sub.mgu(typ, f.typ)
+        assert not mu.is_failed()
+
+        return Leaf(uf_tree.sym, mu(typ)), f.n
 
     def gen_one_app(self, ball, k, typ, n):
         alpha, n1 = new_var(typ, n)
@@ -195,6 +235,45 @@ class Generator:
 
         s_tree_f, n = self.gen_one_random(i, typ_fs, res_x.n)
         s_tree_x, n = self.gen_one_random(j, typ_xs, n)
+
+        assert s_tree_f is not None
+        assert s_tree_x is not None
+
+        tree_f = s_tree_f.apply_sub(sub.dot(res_x.sub, deskolem_sub_f))
+        tree_x = s_tree_x.apply_sub(deskolem_sub_x)
+
+        sigma_fx = sub.dot(res_x.sub, res_f.sub)  # not needed: .restrict(typ)
+        tree_fx = App(tree_f, tree_x, sigma_fx(typ))
+
+        return tree_fx, n
+
+    def gen_one_app_uf(self, uf_tree, ball, k, typ, n):
+        alpha, n1 = new_var(typ, n)
+        typ_f = TypTerm.make_arrow(alpha, typ)
+        f_uf, x_uf = uf_tree.fun, uf_tree.arg
+
+        for i in range(1, k):
+            j = k - i
+
+            for res_f in self.subs_uf(f_uf, i, typ_f, n1):
+                typ_x = res_f.sub(alpha)
+                for res_x in self.subs_uf(x_uf, j, typ_x, res_f.n):
+                    num_fx = res_x.num * res_f.num
+                    if ball < num_fx:
+                        return self.gen_one_app_core_uf(f_uf, x_uf,
+                                                        i, j,
+                                                        typ,
+                                                        typ_f, typ_x,
+                                                        res_f, res_x)
+                    ball -= num_fx
+        assert False
+
+    def gen_one_app_core_uf(self, f_uf, x_uf, i, j, typ, typ_f, typ_x, res_f, res_x):
+        typ_fs, deskolem_sub_f = res_f.sub(typ_f).skolemize()
+        typ_xs, deskolem_sub_x = res_x.sub(typ_x).skolemize()
+
+        s_tree_f, n = self.gen_one_random_uf(f_uf, i, typ_fs, res_x.n)
+        s_tree_x, n = self.gen_one_random_uf(x_uf, j, typ_xs, n)
 
         assert s_tree_f is not None
         assert s_tree_x is not None
