@@ -45,7 +45,7 @@ class AppTree:
 
 class App(AppTree):
     def __init__(self, fun, arg, typ):
-        assert is_fun_type(fun.typ)
+        assert fun.typ is None or is_fun_type(fun.typ)
         self.fun = fun
         self.arg = arg
         self.typ = typ
@@ -142,7 +142,7 @@ class UnfinishedLeaf(Leaf):
 
     def successors_naive(self, gamma):
         ret = [App(UnfinishedLeaf(), UnfinishedLeaf(), None)]
-        for ctx_declaration in gamma.values():
+        for ctx_declaration in gamma.ctx.values():
             ret.append(Leaf(ctx_declaration.sym, None))
         return ret
 

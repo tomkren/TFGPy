@@ -23,7 +23,7 @@ def ts1_static(gamma: Context, typ: Typ, n):
 
 
 def subs_uf_sym(gamma, n, typ, uf_tree):
-    ctx_declaration = gamma.get(uf_tree.sym, None)
+    ctx_declaration = gamma.ctx.get(uf_tree.sym, None)
     if ctx_declaration is None:
         return []
     f = fresh(ctx_declaration.typ, typ, n)
@@ -111,7 +111,10 @@ class Generator:
             return self.subs(k, typ, n)
 
         if isinstance(uf_tree, Leaf):
-            return subs_uf_sym(self.gamma, n, typ, uf_tree)
+            if k == 1:
+                return subs_uf_sym(self.gamma, n, typ, uf_tree)
+            assert k > 1
+            return []
 
         if isinstance(uf_tree, App):
             if k == 1:

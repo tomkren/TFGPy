@@ -98,17 +98,27 @@ class TestGen(unittest.TestCase):
             end = time.time()
             self.assertLess(end - start, REALLY_SHORT_TIME)
 
+    def test_skeletons(self):
+        for goal, gamma, max_k in [d1(), d2(), d3()]:
+            g = Generator(gamma)
+            for k in range(1, max_k):
+                check_successors(self, g, k, goal)
 
-def check_successors_top(tester, generator, k, goal_typ):
+
+def check_successors(tester, generator, k, goal_typ):
     skeleton = UnfinishedLeaf()
-    all_trees = set(tr.tree for tr in ts(gen.gamma, k, typ, 0))
-    check_successors_acc(tester, generator, k, goal_typ, skeleton, all_trees)
+    all_trees = set(tr.tree for tr in ts(generator.gamma, k, goal_typ, 0))
+    if all_trees:
+        check_successors_acc(tester, generator, k, goal_typ, skeleton, all_trees)
 
 
 def check_successors_acc(tester, generator, k, goal_typ, parent_skeleton, all_trees):
     skeletons = parent_skeleton.successors(generator, k, goal_typ)
-    skeleton2trees = {}
+    if not skeletons:
+        tester.assertEqual(len(all_trees), 1)
+        return
 
+    skeleton2trees = {}
     for tree in all_trees:
         has_skeleton = False
         for skeleton in skeletons:
@@ -118,17 +128,14 @@ def check_successors_acc(tester, generator, k, goal_typ, parent_skeleton, all_tr
                 skeleton2trees.setdefault(skeleton, []).append(tree)
         tester.assertTrue(has_skeleton)
 
-    tester.assertEqual(skeletons, len(skeleton2trees))
+    if len(skeletons) != len(skeleton2trees):
+        tester.assertEqual(len(skeletons), len(skeleton2trees))
 
     for skeleton, all_trees_new in skeleton2trees.items():
         check_successors_acc(tester, generator, k, goal_typ, skeleton, all_trees_new)
 
 
-
-
-
 def check_generators_have_same_outputs(generators, goal, max_k):
-
     def check_eq(xs):
         return all(x == xs[0] for x in xs)
 
@@ -174,7 +181,7 @@ if __name__ == "__main__":
     if not True:
         import time
 
-        goal, gamma, max_k = d3() # d1()
+        goal, gamma, max_k = d3()  # d1()
         max_k = 2
 
         gen = Generator(gamma, cache=Cache, normalizator=Normalizator)
@@ -185,11 +192,12 @@ if __name__ == "__main__":
             print(goal)
             print('=' * 30, '\n')
 
+
         def generate_stuff():
             a = time.time()
-            for k in range(1, max_k+1):
+            for k in range(1, max_k + 1):
 
-                print('-- k =', k, '-'*30)
+                print('-- k =', k, '-' * 30)
 
                 num = gen.get_num(k, goal)
                 sub_results = gen.subs(k, goal, 0)
@@ -201,9 +209,9 @@ if __name__ == "__main__":
 
             print("\ntime: %.2f s\n" % (time.time() - a))
 
+
         generate_stuff()
 
         if False:
             print('=' * 40, '\n')
             generate_stuff()
-
