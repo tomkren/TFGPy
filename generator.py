@@ -2,7 +2,7 @@ import random
 from collections import OrderedDict
 
 import sub
-from app_tree import Leaf, App, AppTree, UnfinishedLeaf
+from app_tree import Leaf, App, UnfinishedLeaf
 from cache import Cache
 from context import Context
 from normalization import Normalizator
@@ -20,6 +20,18 @@ def ts1_static(gamma: Context, typ: Typ, n):
             sigma = mu.restrict(typ)
             ret.append(PreTs1Res(ctx_declaration.sym, sigma))
     return ret
+
+
+def subs_uf_sym(gamma, n, typ, uf_tree):
+    ctx_declaration = gamma.get(uf_tree.sym, None)
+    if ctx_declaration is None:
+        return []
+    f = fresh(ctx_declaration.typ, typ, n)
+    mu = sub.mgu(typ, f.typ)
+    if mu.is_failed():
+        return []
+    sigma = mu.restrict(typ)
+    return [sub.SubRes(1, sigma, f.n)]
 
 
 def pack(typ, n, pre_sub_results):
@@ -48,6 +60,9 @@ class Generator:
         nf = self.normalizator(typ)
         return self.cache.get_num(k, nf.typ_nf)
 
+    def get_num_uf(self, uf_tree, k, typ):
+        return sum(sd.num for sd in self.subs_uf(uf_tree, k, typ, 0))
+
     def ts_1_compute(self, typ, n):
         pre_ts1_res = ts1_static(self.gamma, typ, n)
         return Mover.move_pre_ts1_results(typ, n, pre_ts1_res)
@@ -67,6 +82,21 @@ class Generator:
                 ret.append(sub.PreSubRes(num_fx, sigma_fx))
         return ret
 
+    def subs_uf_ij(self, f_uf, x_uf, i, j, typ, n):
+        ret = []
+        alpha, n1 = new_var(typ, n)
+        typ_f = TypTerm.make_arrow(alpha, typ)
+
+        for res_f in self.subs_uf(f_uf, i, typ_f, n1):
+            typ_x = res_f.sub(alpha)
+            for res_x in self.subs_uf(x_uf, j, typ_x, res_f.n):
+                sigma_fx = sub.dot(res_x.sub, res_f.sub).restrict(typ)
+                num_fx = res_x.num * res_f.num
+
+                ret.append(sub.PreSubRes(num_fx, sigma_fx))
+
+        return ret
+
     @tracer_deco(log_ret=True,
                  ret_pp=lambda results: "\n".join("NUM=%d\tN=%d\n%s" % (r.num, r.n, r.sub) for r in results))
     def subs(self, k, typ, n):
@@ -77,7 +107,22 @@ class Generator:
         return ret
 
     def subs_uf(self, uf_tree, k, typ, n):
-        raise NotImplementedError
+        if isinstance(uf_tree, UnfinishedLeaf):
+            return self.subs(k, typ, n)
+
+        if isinstance(uf_tree, Leaf):
+            return subs_uf_sym(self.gamma, n, typ, uf_tree)
+
+        if isinstance(uf_tree, App):
+            if k == 1:
+                return []
+            assert k > 1
+            ret = []
+            for i in range(1, k):
+                ret.extend(self.subs_uf_ij(uf_tree.fun, uf_tree.arg, i, k - i, typ, n))
+            return pack(typ, n, ret)
+
+        assert False
 
     @tracer_deco()
     def subs_compute(self, k, typ, n):

@@ -1,6 +1,6 @@
 import sub
 from app_tree import Leaf, App, UnfinishedLeaf, AppTree
-from generator import ts1_static, pack
+from generator import ts1_static, pack, subs_uf_sym
 from sub import Mover, TsRes
 
 from typ import new_var, TypTerm, fresh
@@ -112,18 +112,6 @@ def subs_uf(gamma, uf_tree, k, typ, n):
         return pack(typ, n, ret)
 
     assert False
-
-
-def subs_uf_sym(gamma, n, typ, uf_tree):
-    ctx_declaration = gamma.get(uf_tree.sym, None)
-    if ctx_declaration is None:
-        return []
-    f = fresh(ctx_declaration.typ, typ, n)
-    mu = sub.mgu(typ, f.typ)
-    if mu.is_failed():
-        return []
-    sigma = mu.restrict(typ)
-    return [sub.SubRes(1, sigma, f.n)]
 
 
 def get_num(gamma, k, typ):
