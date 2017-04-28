@@ -1,6 +1,5 @@
-from generator import ts1_static
 from sub import mgu
-from typ import fresh, is_fun_type, split_fun_type, TypTerm
+from typ import fresh, is_fun_type, split_fun_type
 
 
 class AppTree:
@@ -27,8 +26,8 @@ class AppTree:
     def __hash__(self):
         raise NotImplementedError
 
-    def successors(self, gen):
-        raise NotImplementedError
+        # def successors(self, gen):
+        #   raise NotImplementedError
 
 
 class App(AppTree):
@@ -63,6 +62,8 @@ class App(AppTree):
 
         return False, None
 
+
+"""
     def successors(self, gen):
         fun_s = self.fun.successors(gen)
         if fun_s:
@@ -74,6 +75,7 @@ class App(AppTree):
                 )
 
         s_arg = self.arg.successors(gen)
+"""
 
 
 class Leaf(AppTree):
@@ -106,8 +108,9 @@ class Leaf(AppTree):
 
         return not mu.is_failed(), fr.n
 
-    def successors(self, gen):
-        return []
+
+# def successors(self, gen):
+#        return []
 
 
 class UnfinishedLeaf(Leaf):
@@ -135,9 +138,13 @@ class UnfinishedLeaf(Leaf):
     def is_well_typed_acc(self, gamma, n):
         return False, None
 
+
+"""
     def successors(self, gen):
+        raise NotImplementedError
+        # TODO REMOVE
         if self.k == 1:
-            pre_ts1_results = ts1_static(gen.gamma, self.typ, 0)
+            pre_ts1_results = generator.ts1_static(gen.gamma, self.typ, 0)
             return [Leaf(tr.sym, tr.sub(self.typ)) for tr in pre_ts1_results]
         else:
             alpha = self.typ.get_next_var_id()
@@ -150,3 +157,4 @@ class UnfinishedLeaf(Leaf):
                 # TODO check this app out
                 ret.append(app)
             return ret
+            """

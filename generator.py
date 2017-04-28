@@ -22,28 +22,6 @@ def ts1_static(gamma: Context, typ: Typ, n):
     return ret
 
 
-"""
-def ts1_static_uf(gamma: Context, uf: AppTree, n):
-    if isinstance(uf, UnfinishedLeaf):
-        return ts1_static(gamma, uf.typ, n)
-    if isinstance(uf, Leaf):
-        ret = []
-        for ctx_declaration in gamma.ctx.values():
-            if ctx_declaration.sym == uf.sym:
-
-                f = fresh(ctx_declaration.typ, uf.typ, n)
-                mu = mgu(uf.typ, f.typ)
-                if not mu.is_failed():
-                    sigma = mu.restrict(uf.typ)
-                    ret.append(PreTs1Res(ctx_declaration.sym, sigma))
-        assert len(ret) <= 1
-        return ret
-    else:
-        assert isinstance(uf, App)
-        return []
-"""
-
-
 def pack(typ, n, pre_sub_results):
     results = OrderedDict()
     sub_results = Mover.move_pre_sub_results(typ, n, pre_sub_results)
@@ -97,6 +75,9 @@ class Generator:
         ret = nf.denormalize(results_nf, n)
 
         return ret
+
+    def subs_uf(self, uf_tree, k, typ, n):
+        raise NotImplementedError
 
     @tracer_deco()
     def subs_compute(self, k, typ, n):
