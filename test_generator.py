@@ -4,6 +4,7 @@ from collections import OrderedDict
 
 import normalization
 import typ
+from app_tree import UnfinishedLeaf
 from cache import Cache, CacheNop
 from normalization import Normalizator, NormalizatorNop
 from generator import Generator
@@ -96,6 +97,34 @@ class TestGen(unittest.TestCase):
                 self.assertEqual(res[k - 1], g_num)
             end = time.time()
             self.assertLess(end - start, REALLY_SHORT_TIME)
+
+
+def check_successors_top(tester, generator, k, goal_typ):
+    skeleton = UnfinishedLeaf()
+    all_trees = set(tr.tree for tr in ts(gen.gamma, k, typ, 0))
+    check_successors_acc(tester, generator, k, goal_typ, skeleton, all_trees)
+
+
+def check_successors_acc(tester, generator, k, goal_typ, parent_skeleton, all_trees):
+    skeletons = parent_skeleton.successors(generator, k, goal_typ)
+    skeleton2trees = {}
+
+    for tree in all_trees:
+        has_skeleton = False
+        for skeleton in skeletons:
+            if skeleton.is_skeleton_of(tree):
+                tester.assertFalse(has_skeleton)
+                has_skeleton = True
+                skeleton2trees.setdefault(skeleton, []).append(tree)
+        tester.assertTrue(has_skeleton)
+
+    tester.assertEqual(skeletons, len(skeleton2trees))
+
+    for skeleton, all_trees_new in skeleton2trees.items():
+        check_successors_acc(tester, generator, k, goal_typ, skeleton, all_trees_new)
+
+
+
 
 
 def check_generators_have_same_outputs(generators, goal, max_k):
