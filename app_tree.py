@@ -48,6 +48,9 @@ class AppTree:
     def is_unfinished(self):
         raise NotImplementedError
 
+    def eval_str(self):
+        return str(self)
+
 
 class App(AppTree):
     def __init__(self, fun, arg, typ):
@@ -67,6 +70,9 @@ class App(AppTree):
 
     def __str__(self):
         return "(%s %s)" % (self.fun, self.arg)
+
+    def eval_str(self):
+        return "%s(%s)" % (self.fun.eval_str(), self.arg.eval_str())
 
     def apply_sub(self, sub):
         return App(self.fun.apply_sub(sub), self.arg.apply_sub(sub), sub(self.typ))

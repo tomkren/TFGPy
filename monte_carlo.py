@@ -1,5 +1,10 @@
+import random
+from collections import OrderedDict
+
+import generator
 from app_tree import App, UnfinishedLeaf, UNFINISHED_APP
 from app_tree import Leaf
+from parsers import parse_ctx, parse_typ
 
 
 def dfs_skeleton_picker(tree, old_skeleton):
@@ -53,3 +58,59 @@ def nested_mc_search(uf_tree, level, gen, eval_score, k, typ, skeleton_picker_st
         uf_tree = uf_tree_new
 
     return best
+
+
+if __name__ == "__main__":
+    import math
+
+
+    def koza_poly(x):
+        return x + x ** 2 + x ** 3 + x ** 4
+
+
+    global_symbols = {
+        'plus': lambda x: (lambda y: x + y),
+        'minus': lambda x: (lambda y: x - y),
+        'times': lambda x: (lambda y: x * y),
+        'rdiv': lambda p: (lambda q: p / q if q else 1),
+        'rlog': lambda x: math.log(abs(x)) if x else 0,
+        'sin': math.sin,
+        'cos': math.cos,
+        'exp': math.exp,
+    }
+
+
+    def make_fun(individual):
+        s = "lambda x : %s" % individual.eval_str()
+        f = eval(s, global_symbols)
+        assert callable(f)
+        return f
+
+
+    def fitness(individual, target_f=koza_poly, num_samples=20):
+        fun = make_fun(individual)
+        samples = [-1 + 0.1 * i for i in range(num_samples)]
+        return sum(abs(fun(val) - target_f(val)) for val in samples)
+
+
+    R = 'R'
+    goal = parse_typ(R)
+    gamma = parse_ctx(OrderedDict([
+        ('plus', (R, '->', (R, '->', R))),
+        ('minus', (R, '->', (R, '->', R))),
+        ('times', (R, '->', (R, '->', R))),
+        ('rdiv', (R, '->', (R, '->', R))),
+        ('sin', (R, '->', R)),
+        ('cos', (R, '->', R)),
+        ('exp', (R, '->', R)),
+        ('rlog', (R, '->', R)),
+        ('x', R)
+    ]))
+
+    gen = generator.Generator(gamma)
+    random.seed(5)
+    indiv = gen.gen_one(30, goal)
+    print(indiv.eval_str())
+    print(fitness(indiv))
+
+    # best = nested_mc_search(uf_tree, level, gen, eval_score, k, typ, skeleton_picker_strategy):
