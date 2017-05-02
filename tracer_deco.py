@@ -5,8 +5,8 @@ tracer_depth = 0
 DBG=False
 
 
-def tracer_deco(log_ret=False, ret_pp=str):
-    if not DBG:
+def tracer_deco(log_ret=False, ret_pp=str, enable=False):
+    if not DBG and not enable:
         def deco(f):
             return f
         return deco

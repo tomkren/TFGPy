@@ -42,7 +42,7 @@ class AppTree:
     def is_skeleton_of(self, tree):
         raise NotImplementedError
 
-    def count_symbols(self):
+    def count_finished_nodes(self):
         raise NotImplementedError
 
     def is_unfinished(self):
@@ -99,8 +99,8 @@ class App(AppTree):
                     and self.fun.is_skeleton_of(tree.fun)
                     and self.arg.is_skeleton_of(tree.arg)))
 
-    def count_symbols(self):
-        return len(self.fun) + len(self.arg)
+    def count_finished_nodes(self):
+        return 1 + self.fun.count_finished_nodes() + self.arg.count_finished_nodes()
 
     def is_unfinished(self):
         return self.fun.is_unfinished() or self.arg.is_unfinished()
@@ -144,7 +144,7 @@ class Leaf(AppTree):
                 or (isinstance(tree, Leaf)
                     and self.sym == tree.sym))
 
-    def count_symbols(self):
+    def count_finished_nodes(self):
         return 1
 
     def is_unfinished(self):
@@ -173,7 +173,7 @@ class UnfinishedLeaf(Leaf):
     def is_skeleton_of(self, tree):
         return True
 
-    def count_symbols(self):
+    def count_finished_nodes(self):
         return 0
 
     def is_unfinished(self):
