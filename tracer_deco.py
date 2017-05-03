@@ -2,20 +2,13 @@ from functools import wraps
 
 tracer_depth = 0
 
-DBG=False
 
-
-def tracer_deco(log_ret=False, ret_pp=str, enable=False):
-    if not DBG and not enable:
-        def deco(f):
-            return f
-        return deco
-
+def tracer_deco(log_ret=False, ret_pp=str, print_from_arg=1):
     def deco(f):
         @wraps(f)
         def g(*args, **kwargs):
             global tracer_depth
-            print(" | " * tracer_depth, "%s(%s)" % (f.__name__, ", ".join(map(str, args[1:]))), sep='')
+            print(" | " * tracer_depth, "%s(%s)" % (f.__name__, ", ".join(map(str, args[print_from_arg:]))), sep='')
 
             tracer_depth += 1
             ret = f(*args, **kwargs)

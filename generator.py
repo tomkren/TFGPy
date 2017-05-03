@@ -68,7 +68,6 @@ class Generator:
         pre_ts1_res = ts1_static(self.gamma, typ, n)
         return Mover.move_pre_ts1_results(typ, n, pre_ts1_res)
 
-    @tracer_deco()
     def subs_ij(self, i, j, typ, n):
         ret = []
         alpha, n1 = new_var(typ, n)
@@ -98,8 +97,8 @@ class Generator:
 
         return ret
 
-    @tracer_deco(log_ret=True,
-                 ret_pp=lambda results: "\n".join("NUM=%d\tN=%d\n%s" % (r.num, r.n, r.sub) for r in results))
+    #@tracer_deco(log_ret=True,
+                 #ret_pp=lambda results: "\n".join("NUM=%d\tN=%d\n%s" % (r.num, r.n, r.sub) for r in results))
     def subs(self, k, typ, n):
         nf = self.normalizator(typ)
         results_nf = self.cache.subs(k, nf.typ_nf, n)
@@ -128,7 +127,7 @@ class Generator:
 
         assert False
 
-    @tracer_deco()
+    #@tracer_deco()
     def subs_compute(self, k, typ, n):
         assert k >= 1
         if k == 1:

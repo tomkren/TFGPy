@@ -1,5 +1,3 @@
-from typing import List
-
 from sub import mgu
 from typ import fresh, is_fun_type, split_fun_type
 

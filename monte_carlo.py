@@ -8,23 +8,26 @@ from parsers import parse_ctx, parse_typ
 from tracer_deco import tracer_deco
 
 
-def dfs_skeleton_picker(tree, old_skeleton):
+def dfs_advance_skeleton(old_skeleton, finished_tree):
+    """Advance `old_skeleton` one step towards the `finished_tree`."""
+    assert finished_tree.is_finished()
+    assert old_skeleton.is_skeleton_of(finished_tree)
+
     if isinstance(old_skeleton, App):
-        assert isinstance(tree, App)
-        maybe_new_fun = dfs_skeleton_picker(tree.fun, old_skeleton.fun)
+        assert isinstance(finished_tree, App)
+        maybe_new_fun = dfs_advance_skeleton(old_skeleton.fun, finished_tree.fun)
         if maybe_new_fun is not None:
-            return App(maybe_new_fun, old_skeleton.arg, None)
+            return App(maybe_new_fun, old_skeleton.arg)
 
-        maybe_new_arg = dfs_skeleton_picker(tree.arg, old_skeleton.arg)
+        maybe_new_arg = dfs_advance_skeleton(old_skeleton.arg, finished_tree.arg)
         if maybe_new_arg is not None:
-            return App(old_skeleton.fun, maybe_new_arg, None)
-
+            return App(old_skeleton.fun, maybe_new_arg)
         return None
 
     if isinstance(old_skeleton, UnfinishedLeaf):
-        if isinstance(tree, Leaf):
-            return tree
-        if isinstance(tree, App):
+        if isinstance(finished_tree, Leaf):
+            return finished_tree
+        if isinstance(finished_tree, App):
             return UNFINISHED_APP
         assert False
 
@@ -34,49 +37,56 @@ def dfs_skeleton_picker(tree, old_skeleton):
     assert False
 
 
-def nested_mc_search(gen, goal, max_k, eval_score, max_level, skeleton_picker_strategy=None):
-    if skeleton_picker_strategy is None:
-        skeleton_picker_strategy = dfs_skeleton_picker
+def nested_mc_search(repeat, gen, goal_typ, max_k, max_level, fitness, advance_skeleton=None):
+    #@tracer_deco(print_from_arg=0)
+    def nested_mc_search_raw(level, k, uf_tree):
+        # print(k, level, uf_tree, flush=True)
+
+        # if the input tree is already finished, evaluate it
+        if uf_tree.is_finished():
+            uf_tree.score = fitness(uf_tree)
+            return uf_tree
+
+        # on level 0, finish the tree uniformly randomly with size k and evaluate
+        if level == 0:
+            tree = gen.gen_one_uf(uf_tree, k, goal_typ)
+            tree.score = fitness(tree)
+            return tree
+
+        # best finished tree found
+        best_tree = None
+        while uf_tree is not None:
+            for uf_successor in uf_tree.successors(gen, k, goal_typ):
+                # print("SUCC:", uf_successor)
+                tree = nested_mc_search_raw(level - 1, k, uf_successor)
+                if best_tree is None or tree.score > best_tree.score:
+                    best_tree = tree
+                    # print("BEST NEMC", best.score)
+            # the successors must be nonempty, so:
+            assert best_tree is not None
+
+            uf_tree_new = advance_skeleton(uf_tree, best_tree)
+            # advance_skeleton should return None
+            # when the uf_tree (old skeleton) is already finished
+            if uf_tree_new is not None:
+                assert uf_tree_new.is_skeleton_of(best_tree)
+                # the advance_skeleton should concretize just one symbol
+                assert uf_tree.count_finished_nodes() + 1 == uf_tree_new.count_finished_nodes()
+            uf_tree = uf_tree_new
+
+        return best_tree
+
+    if advance_skeleton is None:
+        advance_skeleton = dfs_advance_skeleton
 
     best = None
-    for k in range(1, max_k+1):
-        print("="*10,"k=", k)
-        this = nested_mc_search_raw(UnfinishedLeaf(), max_level, gen, eval_score, k, goal, skeleton_picker_strategy)
-        print(this)
+    for k in range(1, max_k + 1):
+        print("=" * 10, "k=", k)
+        this = nested_mc_search_raw(max_level, k, UnfinishedLeaf())
+        # print(this)
         if best is None or this.score > best.score:
             best = this
-
-    return best
-
-
-#@tracer_deco(log_ret=True, enable=True)
-def nested_mc_search_raw(uf_tree, level, gen, eval_score, k, typ, skeleton_picker_strategy):
-    print(level, uf_tree)
-    if level == 0:
-        tree = gen.gen_one_uf(uf_tree, k, typ)
-        tree.score = eval_score(tree)
-        return tree
-
-    best = None
-    # None symbolizes finished tree with no UnfinishedLeaves
-    while uf_tree is not None:
-        for uf_successor in uf_tree.successors(gen, k, typ):
-            #print("SUCC:", uf_successor)
-            tree = nested_mc_search_raw(uf_successor, level - 1, gen, eval_score, k, typ, skeleton_picker_strategy)
-            if best is None or tree.score > best.score:
-                best = tree
-
-        assert best is not None
-        assert not best.is_unfinished()
-
-        assert uf_tree.is_skeleton_of(best)
-        uf_tree_new = skeleton_picker_strategy(best, uf_tree)
-        if uf_tree_new is not None:
-            assert uf_tree_new.is_skeleton_of(best)
-            before = uf_tree.count_finished_nodes()
-            after = uf_tree_new.count_finished_nodes()
-            assert before + 1 == after
-        uf_tree = uf_tree_new
+            print("BEST K", best.score)
 
     return best
 
@@ -100,27 +110,6 @@ if __name__ == "__main__":
         'exp': math.exp,
     }
 
-
-    def make_fun(individual):
-        s = "lambda x : %s" % individual.eval_str()
-        f = eval(s, global_symbols)
-        assert callable(f)
-        return f
-
-
-    def fitness(individual, target_f=koza_poly, num_samples=20):
-        fun = make_fun(individual)
-        samples = [-1 + 0.1 * i for i in range(num_samples)]
-        try:
-            error = sum(abs(fun(val) - target_f(val)) for val in samples)
-        except OverflowError:
-            return 0.0
-        score = 1 / (1+error)
-
-        print("EVAL", individual, score)
-        return score
-
-
     R = 'R'
     goal = parse_typ(R)
     gamma = parse_ctx(OrderedDict([
@@ -132,8 +121,30 @@ if __name__ == "__main__":
         ('cos', (R, '->', R)),
         ('exp', (R, '->', R)),
         ('rlog', (R, '->', R)),
-        ('x', R)
+        ('x', R),
     ]))
+
+    CACHE = {}
+
+
+    def fitness(individual, target_f=koza_poly, num_samples=20):
+        s = "lambda x : %s" % individual.eval_str()
+        if s in CACHE:
+            return CACHE[s]
+
+        fun = eval(s, global_symbols)
+        assert callable(fun)
+        samples = [-1 + 0.1 * i for i in range(num_samples)]
+        try:
+            error = sum(abs(fun(val) - target_f(val)) for val in samples)
+        except OverflowError:
+            return 0.0
+        score = 1 / (1 + error)
+        CACHE[s] = score
+
+        # print("EVAL", individual, score)
+        return score
+
 
     gen = generator.Generator(gamma)
     if False:
@@ -142,13 +153,15 @@ if __name__ == "__main__":
         print(indiv.eval_str())
         print(fitness(indiv))
 
+    fs = []
     for i in range(1):
-        print("="*10, i, "="*10)
-        indiv = nested_mc_search(gen, goal, 10, fitness, 1)
+        print("=" * 10, i, "=" * 10)
+        indiv = nested_mc_search(1, gen, goal, max_k=5, max_level=3, fitness=fitness)
         print(indiv.eval_str())
-        print(fitness(indiv))
+        fi = fitness(indiv)
+        fs.append(fi)
+        print(fi)
 
-
-
-
-
+    print()
+    print(sum(fs) / len(fs), min(fs), max(fs))
+    print(len(CACHE))
