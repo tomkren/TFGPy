@@ -45,7 +45,7 @@ class AppTree:
     def count_finished_nodes(self):
         raise NotImplementedError
 
-    def is_unfinished(self):
+    def is_finished(self):
         raise NotImplementedError
 
     def eval_str(self):
@@ -53,7 +53,7 @@ class AppTree:
 
 
 class App(AppTree):
-    def __init__(self, fun, arg, typ):
+    def __init__(self, fun, arg, typ=None):
         assert fun.typ is None or is_fun_type(fun.typ)
         self.fun = fun
         self.arg = arg
@@ -90,8 +90,8 @@ class App(AppTree):
     def successors_naive(self, gamma):
         fun_s = self.fun.successors_naive(gamma)
         if fun_s:
-            return [App(fs, self.arg, None) for fs in fun_s]
-        return [App(self.fun, ass, None) for ass in self.arg.successors_naive(gamma)]
+            return [App(fs, self.arg) for fs in fun_s]
+        return [App(self.fun, ass) for ass in self.arg.successors_naive(gamma)]
 
     def is_skeleton_of(self, tree):
         return (isinstance(tree, UnfinishedLeaf)
@@ -102,12 +102,12 @@ class App(AppTree):
     def count_finished_nodes(self):
         return 1 + self.fun.count_finished_nodes() + self.arg.count_finished_nodes()
 
-    def is_unfinished(self):
-        return self.fun.is_unfinished() or self.arg.is_unfinished()
+    def is_finished(self):
+        return self.fun.is_finished() and self.arg.is_finished()
 
 
 class Leaf(AppTree):
-    def __init__(self, sym, typ):
+    def __init__(self, sym, typ=None):
         self.sym = sym
         self.typ = typ
 
@@ -147,13 +147,13 @@ class Leaf(AppTree):
     def count_finished_nodes(self):
         return 1
 
-    def is_unfinished(self):
-        return False
+    def is_finished(self):
+        return True
 
 
 class UnfinishedLeaf(Leaf):
     def __init__(self):
-        super().__init__("?", None)
+        super().__init__("?")
 
     def __repr__(self):
         return "UnfinishedLeaf()"
@@ -167,7 +167,7 @@ class UnfinishedLeaf(Leaf):
     def successors_naive(self, gamma):
         ret = [UNFINISHED_APP]
         for ctx_declaration in gamma.ctx.values():
-            ret.append(Leaf(ctx_declaration.sym, None))
+            ret.append(Leaf(ctx_declaration.sym))
         return ret
 
     def is_skeleton_of(self, tree):
@@ -176,8 +176,8 @@ class UnfinishedLeaf(Leaf):
     def count_finished_nodes(self):
         return 0
 
-    def is_unfinished(self):
-        return True
+    def is_finished(self):
+        return False
 
 
-UNFINISHED_APP = App(UnfinishedLeaf(), UnfinishedLeaf(), None)
+UNFINISHED_APP = App(UnfinishedLeaf(), UnfinishedLeaf())
