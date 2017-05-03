@@ -1,4 +1,5 @@
 import random
+import math
 from collections import OrderedDict
 
 import generator
@@ -6,6 +7,8 @@ from app_tree import App, UnfinishedLeaf, UNFINISHED_APP
 from app_tree import Leaf
 from parsers import parse_ctx, parse_typ
 from tracer_deco import tracer_deco
+
+C_UCT_EXPLORE = 0.5
 
 
 def dfs_advance_skeleton(old_skeleton, finished_tree):
@@ -37,8 +40,8 @@ def dfs_advance_skeleton(old_skeleton, finished_tree):
     assert False
 
 
-def nested_mc_search(repeat, gen, goal_typ, max_k, max_level, fitness, advance_skeleton=None):
-    #@tracer_deco(print_from_arg=0)
+def nested_mc_search(gen, goal_typ, max_k, max_level, fitness, advance_skeleton=None):
+    # @tracer_deco(print_from_arg=0)
     def nested_mc_search_raw(level, k, uf_tree):
         # print(k, level, uf_tree, flush=True)
 
@@ -91,8 +94,80 @@ def nested_mc_search(repeat, gen, goal_typ, max_k, max_level, fitness, advance_s
     return best
 
 
+class MCTNode:
+    def __init__(self, uf_tree):
+        self.uf_tree = uf_tree
+        self.children = None
+        self.visits = 1
+
+        self.best = None
+        self.best_score = 0.0
+
+    def update_best(self, tree, score):
+        if self.best_score < score:
+            self.best = tree
+            self.best_score = score
+
+    def urgency(self, total_visits):
+        # TODO evaluate
+        return (1 - C_UCT_EXPLORE) * self.best_score + C_UCT_EXPLORE * math.sqrt(math.log(total_visits) / self.visits)
+
+    def expand(self, expander):
+        if not self.uf_tree.is_finished():
+            self.children = [MCTNode(child_tree) for child_tree in expander(self.uf_tree)]
+
+
+def mct_descend(node, expander, expand_visits):
+    node.visits += 1
+    nodes = [node]
+
+    while nodes[-1].children is not None:
+        # Pick the most urgent child
+        children = list(nodes[-1].children)
+        # symmetry breaking for children with the same urgency
+        random.shuffle(children)
+        node = max(children, key=lambda child_node: child_node.urgency(node.visits))
+        nodes.append(node)
+
+        node.visits += 1
+        if node.children is None and node.visits >= expand_visits:
+            node.expand(expander)
+
+    return nodes
+
+
+def mct_playout(node, gen_one_uf):
+    if node.uf_tree.is_finished():
+        tree = node.uf_tree
+    else:
+        tree = gen_one_uf(node.uf_tree)
+
+    return tree, fitness(tree)
+
+
+def mct_update(nodes, tree, score):
+    for node in reversed(nodes):
+        node.update_best(tree, score)
+
+
+def mct_search(node, gen, k, goal_typ, expand_visits, n):
+    gen_one_uf = lambda uf_tree: gen.gen_one_uf(uf_tree, k, goal_typ)
+    expander = lambda uf_tree: uf_tree.successors(gen, k, goal_typ)
+
+    if node.children is None:
+        node.expand(expander)
+
+    i = 0
+    while i < n:
+        i += 1
+        nodes = mct_descend(node, expander, expand_visits)
+        tree, score = mct_playout(nodes[-1], gen_one_uf)
+        mct_update(nodes, tree, score)
+
+
 if __name__ == "__main__":
-    import math
+    if False:
+        import math
 
 
     def koza_poly(x):
@@ -153,15 +228,25 @@ if __name__ == "__main__":
         print(indiv.eval_str())
         print(fitness(indiv))
 
-    fs = []
-    for i in range(1):
-        print("=" * 10, i, "=" * 10)
-        indiv = nested_mc_search(1, gen, goal, max_k=5, max_level=3, fitness=fitness)
-        print(indiv.eval_str())
-        fi = fitness(indiv)
-        fs.append(fi)
-        print(fi)
+    if False:
+        fs = []
+        for i in range(1):
+            print("=" * 10, i, "=" * 10)
+            indiv = nested_mc_search(gen, goal, max_k=5, max_level=3, fitness=fitness)
+            print(indiv.eval_str())
+            fi = fitness(indiv)
+            fs.append(fi)
+            print(fi)
 
-    print()
-    print(sum(fs) / len(fs), min(fs), max(fs))
-    print(len(CACHE))
+        print()
+        print(sum(fs) / len(fs), min(fs), max(fs))
+        print(len(CACHE))
+
+    root = MCTNode(UnfinishedLeaf())
+    # TODO DEBUG
+    # very slow for large k = 20
+    mct_search(root, gen, 7, goal, 5, 200)
+
+    print(root.visits, len(CACHE))
+    print(root.best)
+    print(root.best_score)
