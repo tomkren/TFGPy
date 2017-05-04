@@ -1,12 +1,11 @@
-import random
 import math
-from collections import OrderedDict
+import random
 
 import generator
+import test_montecarlo
 from app_tree import App, UnfinishedLeaf, UNFINISHED_APP
 from app_tree import Leaf
-from parsers import parse_ctx, parse_typ
-from tracer_deco import tracer_deco
+from utils import experiment_eval
 
 C_UCT_EXPLORE = 0.5
 
@@ -38,6 +37,14 @@ def dfs_advance_skeleton(old_skeleton, finished_tree):
         return None
 
     assert False
+
+
+#
+#   Nested Monte Carlo Search
+#
+#   adapted from:
+#       Cazenave, Tristan: Monte-carlo expression discovery.
+#       International Journal on Artificial Intelligence Tools 22.01 (2013): 1250035. APA
 
 
 def nested_mc_search(gen, goal_typ, max_k, max_level, fitness, advance_skeleton=None):
@@ -94,6 +101,10 @@ def nested_mc_search(gen, goal_typ, max_k, max_level, fitness, advance_skeleton=
     return best
 
 
+#
+#   MCTS - Monte Carlo Tree Search
+#
+
 class MCTNode:
     def __init__(self, uf_tree):
         self.uf_tree = uf_tree
@@ -110,6 +121,7 @@ class MCTNode:
 
     def urgency(self, total_visits):
         # TODO evaluate
+        assert self.visits >= 1
         return (1 - C_UCT_EXPLORE) * self.best_score + C_UCT_EXPLORE * math.sqrt(math.log(total_visits) / self.visits)
 
     def expand(self, expander):
@@ -150,7 +162,7 @@ def mct_update(nodes, tree, score):
         node.update_best(tree, score)
 
 
-def mct_search(node, gen, k, goal_typ, expand_visits, n):
+def mct_search(node, gen, k, goal_typ, expand_visits, num_steps):
     gen_one_uf = lambda uf_tree: gen.gen_one_uf(uf_tree, k, goal_typ)
     expander = lambda uf_tree: uf_tree.successors(gen, k, goal_typ)
 
@@ -158,7 +170,7 @@ def mct_search(node, gen, k, goal_typ, expand_visits, n):
         node.expand(expander)
 
     i = 0
-    while i < n:
+    while i < num_steps:
         i += 1
         nodes = mct_descend(node, expander, expand_visits)
         tree, score = mct_playout(nodes[-1], gen_one_uf)
@@ -166,60 +178,7 @@ def mct_search(node, gen, k, goal_typ, expand_visits, n):
 
 
 if __name__ == "__main__":
-    if False:
-        import math
-
-
-    def koza_poly(x):
-        return x + x ** 2 + x ** 3 + x ** 4
-
-
-    global_symbols = {
-        'plus': lambda x: (lambda y: x + y),
-        'minus': lambda x: (lambda y: x - y),
-        'times': lambda x: (lambda y: x * y),
-        'rdiv': lambda p: (lambda q: p / q if q else 1),
-        'rlog': lambda x: math.log(abs(x)) if x else 0,
-        'sin': math.sin,
-        'cos': math.cos,
-        'exp': math.exp,
-    }
-
-    R = 'R'
-    goal = parse_typ(R)
-    gamma = parse_ctx(OrderedDict([
-        ('plus', (R, '->', (R, '->', R))),
-        ('minus', (R, '->', (R, '->', R))),
-        ('times', (R, '->', (R, '->', R))),
-        ('rdiv', (R, '->', (R, '->', R))),
-        ('sin', (R, '->', R)),
-        ('cos', (R, '->', R)),
-        ('exp', (R, '->', R)),
-        ('rlog', (R, '->', R)),
-        ('x', R),
-    ]))
-
-    CACHE = {}
-
-
-    def fitness(individual, target_f=koza_poly, num_samples=20):
-        s = "lambda x : %s" % individual.eval_str()
-        if s in CACHE:
-            return CACHE[s]
-
-        fun = eval(s, global_symbols)
-        assert callable(fun)
-        samples = [-1 + 0.1 * i for i in range(num_samples)]
-        try:
-            error = sum(abs(fun(val) - target_f(val)) for val in samples)
-        except OverflowError:
-            return 0.0
-        score = 1 / (1 + error)
-        CACHE[s] = score
-
-        # print("EVAL", individual, score)
-        return score
-
+    goal, gamma, fitness, count_evals = test_montecarlo.regression_domain_koza_poly()
 
     gen = generator.Generator(gamma)
     if False:
@@ -229,24 +188,30 @@ if __name__ == "__main__":
         print(fitness(indiv))
 
     if False:
-        fs = []
+        values = []
         for i in range(1):
             print("=" * 10, i, "=" * 10)
             indiv = nested_mc_search(gen, goal, max_k=5, max_level=3, fitness=fitness)
             print(indiv.eval_str())
             fi = fitness(indiv)
-            fs.append(fi)
+            values.append(fi)
             print(fi)
 
         print()
-        print(sum(fs) / len(fs), min(fs), max(fs))
-        print(len(CACHE))
+        print(sum(values) / len(values), min(values), max(values))
+        print(count_evals())
 
-    root = MCTNode(UnfinishedLeaf())
+
     # TODO DEBUG
     # very slow for large k = 20
-    mct_search(root, gen, 7, goal, 5, 200)
+    for expands in range(2, 11):
+        def one_iteration():
+            root = MCTNode(UnfinishedLeaf())
+            mct_search(root, gen, k=10, goal_typ=goal, expand_visits=expands, num_steps=1000)
+            return root.best_score
 
-    print(root.visits, len(CACHE))
-    print(root.best)
-    print(root.best_score)
+
+        print('=' * 10)
+        print('expands=%d' % expands)
+        print('=' * 10)
+        experiment_eval(one_iteration, 20)
