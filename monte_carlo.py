@@ -1,11 +1,16 @@
 import math
 import random
+from functools import wraps
+
+import sys
 
 import generator
 import test_montecarlo
+import utils
 from app_tree import App, UnfinishedLeaf, UNFINISHED_APP
 from app_tree import Leaf
-from utils import experiment_eval
+import tracer_deco
+from utils import experiment_eval, PPFunction
 
 C_UCT_EXPLORE = 0.5
 
@@ -47,7 +52,7 @@ def dfs_advance_skeleton(old_skeleton, finished_tree):
 #       International Journal on Artificial Intelligence Tools 22.01 (2013): 1250035. APA
 
 
-def nested_mc_search(gen, goal_typ, max_k, max_level, fitness, advance_skeleton=None):
+def nested_mc_search(gen, goal_typ, k, max_level, fitness, advance_skeleton=None):
     # @tracer_deco(print_from_arg=0)
     def nested_mc_search_raw(level, k, uf_tree):
         # print(k, level, uf_tree, flush=True)
@@ -89,16 +94,7 @@ def nested_mc_search(gen, goal_typ, max_k, max_level, fitness, advance_skeleton=
     if advance_skeleton is None:
         advance_skeleton = dfs_advance_skeleton
 
-    best = None
-    for k in range(1, max_k + 1):
-        print("=" * 10, "k=", k)
-        this = nested_mc_search_raw(max_level, k, UnfinishedLeaf())
-        # print(this)
-        if best is None or this.score > best.score:
-            best = this
-            print("BEST K", best.score)
-
-    return best
+    return nested_mc_search_raw(max_level, k, UnfinishedLeaf())
 
 
 #
@@ -109,10 +105,13 @@ class MCTNode:
     def __init__(self, uf_tree):
         self.uf_tree = uf_tree
         self.children = None
-        self.visits = 1
+        self.visits = 0
 
         self.best = None
         self.best_score = 0.0
+
+    def __str__(self):
+        return "MCTNode<%s>" % (self.uf_tree)
 
     def update_best(self, tree, score):
         if self.best_score < score:
@@ -121,34 +120,48 @@ class MCTNode:
 
     def urgency(self, total_visits):
         # TODO evaluate
-        assert self.visits >= 1
-        return (1 - C_UCT_EXPLORE) * self.best_score + C_UCT_EXPLORE * math.sqrt(math.log(total_visits) / self.visits)
+        return (1 - C_UCT_EXPLORE) * self.best_score + C_UCT_EXPLORE * math.sqrt(
+            math.log(total_visits) / (1 + self.visits))
 
+    @tracer_deco.tracer_deco(log_ret=True, ret_pp=lambda l: ", ".join(map(str, l)))
     def expand(self, expander):
         if not self.uf_tree.is_finished():
             self.children = [MCTNode(child_tree) for child_tree in expander(self.uf_tree)]
+        return self.children
 
 
-def mct_descend(node, expander, expand_visits):
+@tracer_deco.tracer_deco()
+def mct_descend(node, expand_visits, expander, sample_by_urgency=False):
     node.visits += 1
     nodes = [node]
 
+    expanded = False
     while nodes[-1].children is not None:
-        # Pick the most urgent child
-        children = list(nodes[-1].children)
-        # symmetry breaking for children with the same urgency
-        random.shuffle(children)
-        node = max(children, key=lambda child_node: child_node.urgency(node.visits))
-        nodes.append(node)
+        if not sample_by_urgency:
+            # Pick the most urgent child
+            children = list(nodes[-1].children)
+            # symmetry breaking for children with the same urgency
+            random.shuffle(children)
+            node = max(children, key=lambda child_node: child_node.urgency(node.visits))
+        else:
+            # JM: this is probably worse
+            # tested on Koza's polynomial domain with
+            # 200 repetitions of MCTS with 1000 playouts
+            children = nodes[-1].children
+            urgencies = [child_node.urgency(node.visits) for child_node in children]
+            node = utils.sample_by_scores(children, urgencies)
 
+        nodes.append(node)
         node.visits += 1
-        if node.children is None and node.visits >= expand_visits:
+        if node.children is None and node.visits >= expand_visits and not expanded:
+            expanded = True
             node.expand(expander)
 
     return nodes
 
 
-def mct_playout(node, gen_one_uf):
+@tracer_deco.tracer_deco(log_ret=True, ret_pp=(lambda t: "%.3f %s" % (t[1], t[0])))
+def mct_playout(node, gen_one_uf, fitness):
     if node.uf_tree.is_finished():
         tree = node.uf_tree
     else:
@@ -162,9 +175,12 @@ def mct_update(nodes, tree, score):
         node.update_best(tree, score)
 
 
-def mct_search(node, gen, k, goal_typ, expand_visits, num_steps):
-    gen_one_uf = lambda uf_tree: gen.gen_one_uf(uf_tree, k, goal_typ)
-    expander = lambda uf_tree: uf_tree.successors(gen, k, goal_typ)
+@tracer_deco.tracer_deco(force_enable=True)
+def mct_search(node, gen, k, goal_typ, expand_visits, num_steps, fitness):
+    gen_one_uf = PPFunction(lambda uf_tree: gen.gen_one_uf(uf_tree, k, goal_typ),
+                            pp_name='gen_one_uf()')
+    expander = PPFunction(lambda uf_tree: uf_tree.successors(gen, k, goal_typ),
+                          pp_name='gen_one_uf()')
 
     if node.children is None:
         node.expand(expander)
@@ -172,46 +188,68 @@ def mct_search(node, gen, k, goal_typ, expand_visits, num_steps):
     i = 0
     while i < num_steps:
         i += 1
-        nodes = mct_descend(node, expander, expand_visits)
-        tree, score = mct_playout(nodes[-1], gen_one_uf)
+        nodes = mct_descend(node, expand_visits, expander)
+        tree, score = mct_playout(nodes[-1], gen_one_uf, fitness)
         mct_update(nodes, tree, score)
 
 
 if __name__ == "__main__":
-    goal, gamma, fitness, count_evals = test_montecarlo.regression_domain_koza_poly()
+    def make_env():
+        goal, gamma, fitness, count_evals = test_montecarlo.regression_domain_koza_poly()
 
-    gen = generator.Generator(gamma)
+        class Environment:
+            def __init__(self, goal, gamma, fitness, count_evals, gen):
+                self.goal = goal
+                self.gamma = gamma
+                self.fitness = fitness
+                self.count_evals = count_evals
+                self.gen = gen
+
+        return Environment(goal, gamma, PPFunction(fitness, pp_name='fitness()'),
+                           count_evals, generator.Generator(gamma))
+
+
     if False:
+        env = make_env()
         random.seed(5)
-        indiv = gen.gen_one(30, goal)
+        indiv = env.gen.gen_one(30, env.goal)
         print(indiv.eval_str())
-        print(fitness(indiv))
+        print(env.fitness(indiv))
 
     if False:
-        values = []
-        for i in range(1):
-            print("=" * 10, i, "=" * 10)
-            indiv = nested_mc_search(gen, goal, max_k=5, max_level=3, fitness=fitness)
-            print(indiv.eval_str())
-            fi = fitness(indiv)
-            values.append(fi)
-            print(fi)
-
-        print()
-        print(sum(values) / len(values), min(values), max(values))
-        print(count_evals())
+        def one_iteration(env):
+            evals_before = env.count_evals()
+            indiv = nested_mc_search(env.gen, env.goal, k=10, max_level=2, fitness=env.fitness)
+            return env.fitness(indiv), env.count_evals() - evals_before
 
 
-    # TODO DEBUG
-    # very slow for large k = 20
-    for expands in range(2, 11):
-        def one_iteration():
+        experiment_eval(one_iteration, repeat=20, processes=3, make_env=make_env)
+
+    if False:
+        def one_iteration(env):
+            evals_before = env.count_evals()
             root = MCTNode(UnfinishedLeaf())
-            mct_search(root, gen, k=10, goal_typ=goal, expand_visits=expands, num_steps=1000)
-            return root.best_score
+            mct_search(root, env.gen, k=10, goal_typ=env.goal, expand_visits=8, num_steps=1000, fitness=env.fitness)
+            return root.best_score, env.count_evals() - evals_before
 
 
-        print('=' * 10)
-        print('expands=%d' % expands)
-        print('=' * 10)
-        experiment_eval(one_iteration, 20)
+        experiment_eval(one_iteration, repeat=200, processes=2, make_env=make_env)
+
+    if True:
+        env = make_env()
+        tracer_deco.enable_tracer = True
+        # TODO DEBUG
+        # very slow for large k = 20
+        random.seed(5)
+        root = MCTNode(UnfinishedLeaf())
+        mct_search(root, env.gen, k=10, goal_typ=env.goal, expand_visits=8, num_steps=50, fitness=env.fitness)
+        print('=' * 20)
+        print(root.best)
+        print(root.best_score)
+        print(root.visits, root.uf_tree)
+        print("children")
+        for c in root.children[0].children:
+            print(c.visits, "%.3f" % c.urgency(root.visits), c.uf_tree)
+
+
+

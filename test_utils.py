@@ -32,5 +32,32 @@ class TestBijection(unittest.TestCase):
              [3, 5, 4, 2, 1])
 
 
+class TestSampleByScores(unittest.TestCase):
+    def test_rnd(self):
+        choices = list(range(10))
+        scores = [1] * 10
+        picks = [0] * 10
+        for i in range(100000):
+            take = utils.sample_by_scores(choices, scores)
+            picks[take] += 1
+
+        # XXX
+        self.assertTrue(all(p >= 9800 for p in picks))
+
+    def test_small(self):
+        self.assertEqual(
+            utils.sample_by_scores((666,), (0,)),
+            666
+        )
+        self.assertEqual(
+            utils.sample_by_scores((666,), (1,)),
+            666
+        )
+        self.assertEqual(
+            utils.sample_by_scores((666,), (100,)),
+            666
+        )
+
+
 if __name__ == "__main__":
     unittest.main()

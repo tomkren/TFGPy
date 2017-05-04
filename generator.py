@@ -57,6 +57,9 @@ class Generator:
         self.cache = cache(self)
         self.normalizator = normalizator
 
+    def __str__(self):
+        return "Generator(...)"
+
     def get_num(self, k, typ):
         nf = self.normalizator(typ)
         return self.cache.get_num(k, nf.typ_nf)
@@ -97,8 +100,9 @@ class Generator:
 
         return ret
 
-    #@tracer_deco(log_ret=True,
-                 #ret_pp=lambda results: "\n".join("NUM=%d\tN=%d\n%s" % (r.num, r.n, r.sub) for r in results))
+        # @tracer_deco(log_ret=True,
+        # ret_pp=lambda results: "\n".join("NUM=%d\tN=%d\n%s" % (r.num, r.n, r.sub) for r in results))
+
     def subs(self, k, typ, n):
         nf = self.normalizator(typ)
         results_nf = self.cache.subs(k, nf.typ_nf, n)
@@ -127,7 +131,7 @@ class Generator:
 
         assert False
 
-    #@tracer_deco()
+    # @tracer_deco()
     def subs_compute(self, k, typ, n):
         assert k >= 1
         if k == 1:

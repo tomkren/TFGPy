@@ -1,4 +1,6 @@
 import math
+import multiprocessing
+import random
 import sys
 
 
@@ -76,23 +78,86 @@ def sd(l):
     return math.sqrt(sum((v - avg) ** 2 for v in l))
 
 
-def experiment_eval(get_one_value, repeat):
-    print("experiment_eval(repeat=%d)" % repeat)
+def mean_dev(l):
+    if not l:
+        return None
+    avg = mean(l)
+    return mean([abs(v - avg) for v in l])
+
+
+def worker_run_with_env(fc):
+    global worker_env
+    return fc(worker_env)
+
+
+def experiment_eval(one_iteration, make_env, repeat=10, processes=1):
+    if processes <= 0:
+        processes = multiprocessing.cpu_count()
+
+    print("experiment_eval(repeat=%d, processes=%d)" % (repeat, processes))
     if not repeat:
         return
+
+    def make_worker_env():
+        global worker_env
+        worker_env = make_env()
+
+    pool = multiprocessing.Pool(processes=processes, initializer=make_worker_env)
+
     fs = []
-    for i in range(repeat):
+    total_num_evals = 0
+    for score, num_evals in pool.imap_unordered(worker_run_with_env, (one_iteration for _ in range(repeat))):
         print('.', end='', flush=True)
-        fs.append(get_one_value())
+        fs.append(score)
+        total_num_evals += num_evals
 
     print()
     print_it_stats(fs, flush=True)
+    print("num_evals=%d" % total_num_evals)
     return fs
 
 
 def print_it_stats(iterator, flush=False):
     values = list(iterator)
-    print(u"avg=%.3f \u00B1 %.3f\tmin=%.3f, median=%.3f, max=%.3f" % (mean(values), sd(values),
-                                                                      min(values), median(values), max(values)))
+    print(u"avg=%.3f \u00B1 %.3f\tsd=%.3f min=%.3f median=%.3f max=%.3f" % (mean(values), mean_dev(values),
+                                                                            sd(values),
+                                                                            min(values), median(values), max(values)))
     if flush:
         sys.stdout.flush()
+
+
+# Function with pretty print
+class PPFunction:
+    def __init__(self, raw_function, pp_name=None):
+        self.raw_function = raw_function
+        self.pp_name = pp_name
+
+    def __call__(self, *args, **kwargs):
+        return self.raw_function(*args, **kwargs)
+
+    def __str__(self):
+        if self.pp_name is not None:
+            return self.pp_name
+        return self.raw_function.__name__
+
+
+def sample_by_scores(choices, scores):
+    assert choices
+    assert len(choices) == len(scores)
+    assert all(s >= 0 for s in scores)
+    total = sum(scores)
+    if not total:
+        return random.choice(choices)
+    pick = total * random.random()
+
+    sofar = 0
+    i = 0
+    last = None
+    while sofar < pick:
+        assert i < len(choices)
+        last = choices[i]
+        sofar += scores[i]
+        i += 1
+
+    assert last is not None
+    return last
