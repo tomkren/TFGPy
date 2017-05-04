@@ -1,5 +1,5 @@
-from sub import mgu
-from typ import fresh, is_fun_type, split_fun_type
+from sub import mgu, Sub
+from typ import fresh, is_fun_type, split_fun_type, new_var, TypTerm
 
 
 class AppTree:
@@ -35,6 +35,9 @@ class AppTree:
         return ret
 
     def successors_naive(self, gamma):
+        raise NotImplementedError
+
+    def successors_typed(self, gamma, n):
         raise NotImplementedError
 
     def is_skeleton_of(self, tree):
@@ -91,6 +94,20 @@ class App(AppTree):
             return [App(fs, self.arg) for fs in fun_s]
         return [App(self.fun, ass) for ass in self.arg.successors_naive(gamma)]
 
+    def successors_typed(self, gamma, n):
+        ret = []
+        f_succs = self.fun.successors_typed(gamma, n)
+        if f_succs:
+            for tree_f, sub_f, n1 in f_succs:
+                tree_x = self.arg.apply_sub(sub_f)
+                ret.append((App(tree_f, tree_x, sub_f(self.typ)), sub_f, n1))
+        else:
+            x_succs = self.arg.successors_typed(gamma, n)
+            for tree_x, sub_x, n1 in x_succs:
+                tree_f = self.fun.apply_sub(sub_x)
+                ret.append((App(tree_f, tree_x, sub_x(self.typ)), sub_x, n1))
+        return ret
+
     def is_skeleton_of(self, tree):
         return (isinstance(tree, UnfinishedLeaf)
                 or (isinstance(tree, App)
@@ -137,6 +154,9 @@ class Leaf(AppTree):
     def successors_naive(self, gamma):
         return []
 
+    def successors_typed(self, gamma, n):
+        return []
+
     def is_skeleton_of(self, tree):
         return (isinstance(tree, UnfinishedLeaf)
                 or (isinstance(tree, Leaf)
@@ -150,11 +170,11 @@ class Leaf(AppTree):
 
 
 class UnfinishedLeaf(Leaf):
-    def __init__(self):
-        super().__init__("?")
+    def __init__(self, typ=None):
+        super().__init__("?", typ)
 
     def __repr__(self):
-        return "UnfinishedLeaf()"
+        return "UnfinishedLeaf(%s)" % repr(self.typ)
 
     def apply_sub(self, sub):
         raise NotImplementedError
@@ -166,6 +186,19 @@ class UnfinishedLeaf(Leaf):
         ret = [UNFINISHED_APP]
         for ctx_declaration in gamma.ctx.values():
             ret.append(Leaf(ctx_declaration.sym))
+        return ret
+
+    def successors_typed(self, gamma, n):
+        alpha, n1 = new_var(self.typ, n)
+        typ_f = TypTerm.make_arrow(alpha, self.typ)
+        ret = [(App(UnfinishedLeaf(typ_f), UnfinishedLeaf(alpha), self.typ), Sub(), n1)]
+        for ctx_declaration in gamma.ctx.values():
+            fresh_res = fresh(ctx_declaration.typ, self.typ, n)
+            mu = mgu(self.typ, fresh_res.typ)
+            if not mu.is_failed():
+                sigma = mu.restrict(self.typ)
+                leaf = Leaf(ctx_declaration.sym, sigma(self.typ))
+                ret.append((leaf, sigma, fresh_res.n))
         return ret
 
     def is_skeleton_of(self, tree):
