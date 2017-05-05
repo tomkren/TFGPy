@@ -12,6 +12,8 @@ from app_tree import Leaf
 import tracer_deco
 from utils import experiment_eval, PPFunction
 
+# 0.5 is a reasonable value
+# but it depends on the fitness function at hand
 C_UCT_EXPLORE = 0.5
 
 
@@ -52,6 +54,7 @@ def dfs_advance_skeleton(old_skeleton, finished_tree):
 #       International Journal on Artificial Intelligence Tools 22.01 (2013): 1250035. APA
 
 
+@tracer_deco.tracer_deco(force_enable=True)
 def nested_mc_search(gen, goal_typ, k, max_level, fitness, advance_skeleton=None):
     # @tracer_deco(print_from_arg=0)
     def nested_mc_search_raw(level, k, uf_tree):
@@ -102,31 +105,68 @@ def nested_mc_search(gen, goal_typ, k, max_level, fitness, advance_skeleton=None
 #
 
 class MCTNode:
-    def __init__(self, uf_tree):
+    def __init__(self, uf_tree, k):
         self.uf_tree = uf_tree
+        self.k = k
         self.children = None
         self.visits = 0
 
         self.best = None
-        self.best_score = 0.0
+        self.score_sum = 0
+        self.score_num = 0
+
+        self.best_score = 0
 
     def __str__(self):
-        return "MCTNode<%s>" % (self.uf_tree)
+        return "MCTNode<k=%d, %s>" % (self.k, self.uf_tree)
 
     def update_best(self, tree, score):
+        self.score_sum += score
+        self.score_num += 1
+        assert self.score_num == self.visits
         if self.best_score < score:
             self.best = tree
             self.best_score = score
 
-    def urgency(self, total_visits):
-        # TODO evaluate
-        return (1 - C_UCT_EXPLORE) * self.best_score + C_UCT_EXPLORE * math.sqrt(
-            math.log(total_visits) / (1 + self.visits))
+    def urgency(self, total_visits, method='best'):
+        exploration = C_UCT_EXPLORE * math.sqrt(math.log(total_visits) / (1 + self.visits))
+
+        # from preliminary tests, best is the best
+        if method == 'best':
+            exploatation = (1 - C_UCT_EXPLORE) * self.best_score
+
+        if method == 'avg':
+            exploatation = (1 - C_UCT_EXPLORE) * self.score_sum / (1 + self.score_num)
+
+        if method == '(avg+best)/2':
+            exploatation = (1 - C_UCT_EXPLORE) * 0.5 * (self.best_score + self.score_sum / (1 + self.score_num))
+
+        return exploatation + exploration
 
     @tracer_deco.tracer_deco(log_ret=True, ret_pp=lambda l: ", ".join(map(str, l)))
     def expand(self, expander):
         if not self.uf_tree.is_finished():
-            self.children = [MCTNode(child_tree) for child_tree in expander(self.uf_tree)]
+            self.children = [MCTNode(child_tree, self.k) for child_tree in expander(self.uf_tree, self.k)]
+        return self.children
+
+
+class MCTChooseK(MCTNode):
+    def __init__(self, uf_tree, max_k):
+        self.uf_tree = uf_tree
+        self.max_k = max_k
+        self.children = None
+        self.visits = 0
+
+        self.best = None
+        self.score_sum = 0
+        self.score_num = 0
+        self.best_score = 0
+
+    def __str__(self):
+        return "MCTChooseK<max_k=%d, %s>" % (self.max_k, self.uf_tree)
+
+    def expand(self, expander):
+        self.children = [MCTNode(self.uf_tree, k) for k in range(2, self.max_k + 1)]
         return self.children
 
 
@@ -165,7 +205,7 @@ def mct_playout(node, gen_one_uf, fitness):
     if node.uf_tree.is_finished():
         tree = node.uf_tree
     else:
-        tree = gen_one_uf(node.uf_tree)
+        tree = gen_one_uf(node.uf_tree, node.k)
 
     return tree, fitness(tree)
 
@@ -176,11 +216,11 @@ def mct_update(nodes, tree, score):
 
 
 @tracer_deco.tracer_deco(force_enable=True)
-def mct_search(node, gen, k, goal_typ, expand_visits, num_steps, fitness):
-    gen_one_uf = PPFunction(lambda uf_tree: gen.gen_one_uf(uf_tree, k, goal_typ),
+def mct_search(node, gen, goal_typ, expand_visits, num_steps, fitness):
+    gen_one_uf = PPFunction(lambda uf_tree, k: gen.gen_one_uf(uf_tree, k, goal_typ),
                             pp_name='gen_one_uf()')
-    expander = PPFunction(lambda uf_tree: uf_tree.successors(gen, k, goal_typ),
-                          pp_name='gen_one_uf()')
+    expander = PPFunction(lambda uf_tree, k: uf_tree.successors(gen, k, goal_typ),
+                          pp_name='expander()')
 
     if node.children is None:
         node.expand(expander)
@@ -219,30 +259,31 @@ if __name__ == "__main__":
     if False:
         def one_iteration(env):
             evals_before = env.count_evals()
-            indiv = nested_mc_search(env.gen, env.goal, k=10, max_level=2, fitness=env.fitness)
+            indiv = nested_mc_search(env.gen, env.goal, k=10, max_level=3, fitness=env.fitness)
             return env.fitness(indiv), env.count_evals() - evals_before
 
 
-        experiment_eval(one_iteration, repeat=20, processes=3, make_env=make_env)
+        experiment_eval(one_iteration, repeat=100, processes=2, make_env=make_env)
 
-    if False:
+    if not False:
         def one_iteration(env):
             evals_before = env.count_evals()
-            root = MCTNode(UnfinishedLeaf())
-            mct_search(root, env.gen, k=10, goal_typ=env.goal, expand_visits=8, num_steps=1000, fitness=env.fitness)
+            root = MCTChooseK(UnfinishedLeaf(), max_k=10)
+            mct_search(root, env.gen, goal_typ=env.goal, expand_visits=8, num_steps=1000, fitness=env.fitness)
             return root.best_score, env.count_evals() - evals_before
 
 
         experiment_eval(one_iteration, repeat=200, processes=2, make_env=make_env)
 
-    if True:
+    if not True:
         env = make_env()
         tracer_deco.enable_tracer = True
         # TODO DEBUG
         # very slow for large k = 20
         random.seed(5)
-        root = MCTNode(UnfinishedLeaf())
-        mct_search(root, env.gen, k=10, goal_typ=env.goal, expand_visits=8, num_steps=50, fitness=env.fitness)
+        # root = MCTNode(UnfinishedLeaf(), k=20)
+        root = MCTChooseK(UnfinishedLeaf(), max_k=10)
+        mct_search(root, env.gen, goal_typ=env.goal, expand_visits=2, num_steps=50, fitness=env.fitness)
         print('=' * 20)
         print(root.best)
         print(root.best_score)
@@ -250,6 +291,3 @@ if __name__ == "__main__":
         print("children")
         for c in root.children[0].children:
             print(c.visits, "%.3f" % c.urgency(root.visits), c.uf_tree)
-
-
-
