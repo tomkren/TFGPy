@@ -106,14 +106,16 @@ def experiment_eval(one_iteration, make_env, repeat=10, processes=1):
 
     fs = []
     total_num_evals = 0
-    for score, num_evals in pool.imap_unordered(worker_run_with_env, (one_iteration for _ in range(repeat))):
-        print('.', end='', flush=True)
-        fs.append(score)
-        total_num_evals += num_evals
+    try:
+        for score, num_evals in pool.imap_unordered(worker_run_with_env, (one_iteration for _ in range(repeat))):
+            print('.', end='', flush=True)
+            fs.append(score)
+            total_num_evals += num_evals
+    finally:
+        print()
+        print_it_stats(fs, flush=True)
+        print("num_evals=%d" % total_num_evals)
 
-    print()
-    print_it_stats(fs, flush=True)
-    print("num_evals=%d" % total_num_evals)
     return fs
 
 
