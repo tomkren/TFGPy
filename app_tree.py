@@ -3,6 +3,9 @@ from typ import fresh, is_fun_type, split_fun_type
 
 
 class AppTree:
+    def __init__(self):
+        self.finished_flag = None
+
     def is_well_typed(self, gamma):
         is_ok, _ = self.is_well_typed_acc(gamma, 0)
         return is_ok
@@ -44,6 +47,11 @@ class AppTree:
         raise NotImplementedError
 
     def is_finished(self):
+        if self.finished_flag is None:
+            self.finished_flag = self.is_finished_raw()
+        return self.finished_flag
+
+    def is_finished_raw(self):
         raise NotImplementedError
 
     def eval_str(self):
@@ -52,6 +60,7 @@ class AppTree:
 
 class App(AppTree):
     def __init__(self, fun, arg, typ=None):
+        super().__init__()
         assert fun.typ is None or is_fun_type(fun.typ)
         self.fun = fun
         self.arg = arg
@@ -100,12 +109,13 @@ class App(AppTree):
     def count_finished_nodes(self):
         return 1 + self.fun.count_finished_nodes() + self.arg.count_finished_nodes()
 
-    def is_finished(self):
-        return self.fun.is_finished() and self.arg.is_finished()
+    def is_finished_raw(self):
+        return self.fun.is_finished_raw() and self.arg.is_finished_raw()
 
 
 class Leaf(AppTree):
     def __init__(self, sym, typ=None):
+        super().__init__()
         self.sym = sym
         self.typ = typ
 
@@ -145,7 +155,7 @@ class Leaf(AppTree):
     def count_finished_nodes(self):
         return 1
 
-    def is_finished(self):
+    def is_finished_raw(self):
         return True
 
 
@@ -174,7 +184,7 @@ class UnfinishedLeaf(Leaf):
     def count_finished_nodes(self):
         return 0
 
-    def is_finished(self):
+    def is_finished_raw(self):
         return False
 
 
