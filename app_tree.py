@@ -34,10 +34,30 @@ class AppTree:
                 ret.append(naive_succ)
         return ret
 
+    def successors_smart(self, gen, k):
+        ret = []
+        for uf_tree, sigma, n in self.successors_typed(gen.gamma, 0):
+            num = gen.get_num_uf_smart(uf_tree, k)
+            if num > 0:
+                ret.append(uf_tree)
+        return ret
+
     def successors_naive(self, gamma):
         raise NotImplementedError
 
     def successors_typed(self, gamma, n):
+        raise NotImplementedError
+
+    def get_unfinished_leafs(self):
+        raise NotImplementedError
+
+    def replace_unfinished_leafs(self, new_subtrees):
+        acc = list(new_subtrees)
+        ret = self.replace_unfinished_leafs_raw(acc)
+        assert len(acc) == 0
+        return ret
+
+    def replace_unfinished_leafs_raw(self, new_subtrees):
         raise NotImplementedError
 
     def is_skeleton_of(self, tree):
@@ -95,6 +115,7 @@ class App(AppTree):
         return [App(self.fun, ass) for ass in self.arg.successors_naive(gamma)]
 
     def successors_typed(self, gamma, n):
+        n = self.typ.get_next_var_id(n)
         ret = []
         f_succs = self.fun.successors_typed(gamma, n)
         if f_succs:
@@ -107,6 +128,15 @@ class App(AppTree):
                 tree_f = self.fun.apply_sub(sub_x)
                 ret.append((App(tree_f, tree_x, sub_x(self.typ)), sub_x, n1))
         return ret
+
+    def get_unfinished_leafs(self):
+        return self.fun.get_unfinished_leafs().extend(self.arg.get_unfinished_leafs())
+
+    def replace_unfinished_leafs_raw(self, new_subtrees):
+        fun_new = self.fun.replace_unfinished_leafs(new_subtrees)
+        arg_new = self.arg.replace_unfinished_leafs(new_subtrees)
+        typ_new = None  # TODO !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+        return App(fun_new, arg_new, typ_new)
 
     def is_skeleton_of(self, tree):
         return (isinstance(tree, UnfinishedLeaf)
@@ -157,6 +187,12 @@ class Leaf(AppTree):
     def successors_typed(self, gamma, n):
         return []
 
+    def get_unfinished_leafs(self):
+        return []
+
+    def replace_unfinished_leafs_raw(self, new_subtrees):
+        return self
+
     def is_skeleton_of(self, tree):
         return (isinstance(tree, UnfinishedLeaf)
                 or (isinstance(tree, Leaf)
@@ -201,6 +237,13 @@ class UnfinishedLeaf(Leaf):
                 ret.append((leaf, sigma, fresh_res.n))
         return ret
 
+    def get_unfinished_leafs(self):
+        return [self]
+
+    def replace_unfinished_leafs_raw(self, new_subtrees):
+        assert len(new_subtrees) > 0
+        return new_subtrees.pop(0)
+
     def is_skeleton_of(self, tree):
         return True
 
@@ -212,3 +255,24 @@ class UnfinishedLeaf(Leaf):
 
 
 UNFINISHED_APP = App(UnfinishedLeaf(), UnfinishedLeaf())
+
+INTERNAL_PAIR_CONSTRUCTOR_SYM = '_p_'
+
+
+def split_internal_pair(tree):
+    if isinstance(tree, App) and isinstance(tree.fun, App) and isinstance(tree.fun.fun, Leaf):
+        if tree.fun.fun.sym == INTERNAL_PAIR_CONSTRUCTOR_SYM:
+            return tree.arg, tree.fun.arg
+    return None, None
+
+
+def split_internal_tuple(tree):
+    ret = []
+    acc = tree
+    while True:
+        head, tail = split_internal_pair(acc)
+        if head is None:
+            ret.append(acc)
+            return ret
+        ret.append(head)
+        acc = tail

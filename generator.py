@@ -2,7 +2,7 @@ import random
 from collections import OrderedDict
 
 import sub
-from app_tree import Leaf, App, UnfinishedLeaf
+from app_tree import Leaf, App, UnfinishedLeaf, split_internal_tuple
 from cache import Cache
 from context import Context
 from normalization import Normalizator
@@ -64,6 +64,9 @@ class Generator:
     def get_num_uf(self, uf_tree, k, typ):
         return sum(sd.num for sd in self.subs_uf(uf_tree, k, typ, 0))
 
+    def get_num_uf_smart(self, uf_tree, k):
+        return sum(sd.num for sd in self.subs_uf_smart(uf_tree, k, 0))
+
     def ts_1_compute(self, typ, n):
         pre_ts1_res = ts1_static(self.gamma, typ, n)
         return Mover.move_pre_ts1_results(typ, n, pre_ts1_res)
@@ -106,6 +109,14 @@ class Generator:
 
         return ret
 
+    def subs_uf_smart(self, uf_tree, k, n):
+        uf_leafs = uf_tree.get_unfinished_leafs()
+        if len(uf_leafs) > 0:
+            hax_typ = TypTerm.make_internal_tuple((uf_leaf.typ for uf_leaf in uf_leafs))
+            return self.subs(k, hax_typ, n)
+        else:
+            return [sub.PreSubRes(1, sub.Sub())]
+
     def subs_uf(self, uf_tree, k, typ, n):
         if isinstance(uf_tree, UnfinishedLeaf):
             return self.subs(k, typ, n)
@@ -144,6 +155,17 @@ class Generator:
         if ret is None:
             return None
         return ret[0]
+
+    def gen_one_uf_smart(self, uf_tree, k):
+        uf_leafs = uf_tree.get_unfinished_leafs()
+        if len(uf_leafs) > 0:
+            hax_typ = TypTerm.make_internal_tuple((uf_leaf.typ for uf_leaf in uf_leafs))
+            hax_tree = self.gen_one(k, hax_typ)
+            hax_subtrees = split_internal_tuple(hax_tree)
+            assert len(uf_leafs) == len(hax_subtrees)
+            return uf_tree.replace_unfinished_leafs(hax_subtrees)
+        else:
+            return uf_tree
 
     def gen_one_uf(self, uf_tree, k, typ):
         ret = self.gen_one_random_uf(uf_tree, k, typ, 0)

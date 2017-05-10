@@ -1,5 +1,6 @@
 from collections import OrderedDict
 from collections import namedtuple
+from functools import reduce
 
 import sub
 import utils
@@ -173,12 +174,18 @@ class TypSkolem(TypSymbol):
 
 
 T_ARROW = TypSymbol('->')
-
+T_INTERNAL_PAIR = TypSymbol('_P_')
 
 class TypTerm(Typ):
+
     @staticmethod
     def make_arrow(left, right):
         return TypTerm((T_ARROW, left, right))
+
+    @staticmethod
+    def make_internal_tuple(xs):
+        assert len(xs) > 0
+        return reduce(lambda x, y: TypTerm((T_INTERNAL_PAIR, y, x)), xs[::-1])
 
     def __init__(self, arguments):
         assert isinstance(arguments, tuple)
