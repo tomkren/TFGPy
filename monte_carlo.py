@@ -105,30 +105,35 @@ def nested_mc_search(gen, goal_typ, k, max_level, fitness, advance_skeleton=None
 #
 
 class MCTNode:
-    def __init__(self, uf_tree, k):
-        self.uf_tree = uf_tree
-        self.k = k
+    def __init__(self):
+        # flag for marking that
+        # the subtree is fully expanded (self.uf_tree finished)
+        self.finished_flag = False
         self.children = None
         self.visits = 0
 
         self.best = None
         self.score_sum = 0
         self.score_num = 0
-
         self.best_score = 0
 
-    def __str__(self):
-        return "MCTNode<k=%d, %s>" % (self.k, self.uf_tree)
-
-    def update_best(self, tree, score):
+    def update_best(self, new, score):
         self.score_sum += score
         self.score_num += 1
         assert self.score_num == self.visits
         if self.best_score < score:
-            self.best = tree
+            self.best = new
             self.best_score = score
 
+        self.update_finished()
+
+    def update_finished(self):
+        raise NotImplementedError
+
     def urgency(self, total_visits, method='best'):
+        if self.finished_flag:
+            return 0.0
+
         exploration = C_UCT_EXPLORE * math.sqrt(math.log(total_visits) / (1 + self.visits))
 
         # from preliminary tests, best is the best
@@ -143,31 +148,50 @@ class MCTNode:
 
         return exploatation + exploration
 
+    def expand(self, *args, **kwargs):
+        raise NotImplementedError
+
+
+class MCTkNode(MCTNode):
+    def __init__(self, uf_tree, k):
+        super().__init__()
+        self.uf_tree = uf_tree
+        self.k = k
+
+    def __str__(self):
+        return "MCTkNode<k=%d, %s>" % (self.k, self.uf_tree)
+
+    def update_finished(self):
+        if self.uf_tree.is_finished() or (
+                        self.children is not None and all(c.finished_flag for c in self.children)):
+            # this prevents further searching through this (now finished) node
+            self.finished_flag = True
+
     @tracer_deco.tracer_deco(log_ret=True, ret_pp=lambda l: ", ".join(map(str, l)))
     def expand(self, expander):
         if not self.uf_tree.is_finished():
-            self.children = [MCTNode(child_tree, self.k) for child_tree in expander(self.uf_tree, self.k)]
+            self.children = [MCTkNode(child_tree, self.k) for child_tree in expander(self.uf_tree, self.k)]
         return self.children
 
 
 class MCTChooseK(MCTNode):
     def __init__(self, uf_tree, max_k):
+        super().__init__()
         self.uf_tree = uf_tree
         self.max_k = max_k
-        self.children = None
-        self.visits = 0
-
-        self.best = None
-        self.score_sum = 0
-        self.score_num = 0
-        self.best_score = 0
 
     def __str__(self):
         return "MCTChooseK<max_k=%d, %s>" % (self.max_k, self.uf_tree)
 
     def expand(self, expander):
-        self.children = [MCTNode(self.uf_tree, k) for k in range(2, self.max_k + 1)]
+        self.children = [MCTkNode(self.uf_tree, k) for k in range(2, self.max_k + 1)]
         return self.children
+
+    def update_finished(self):
+        if self.uf_tree.is_finished() or (
+                        self.children is not None and all(c.finished_flag for c in self.children)):
+            # this prevents further searching through this (now finished) node
+            self.finished_flag = True
 
 
 @tracer_deco.tracer_deco()
@@ -202,6 +226,7 @@ def mct_descend(node, expand_visits, expander, sample_by_urgency=False):
 
 @tracer_deco.tracer_deco(log_ret=True, ret_pp=(lambda t: "%.3f %s" % (t[1], t[0])))
 def mct_playout(node, gen_one_uf, fitness):
+    assert not node.finished_flag
     if node.uf_tree.is_finished():
         tree = node.uf_tree
     else:
@@ -211,6 +236,9 @@ def mct_playout(node, gen_one_uf, fitness):
 
 
 def mct_update(nodes, tree, score):
+    # the reverse order is necessary, since we
+    # need the children to be updated before we update
+    # parent (e.g. for correct node.is_finished update)
     for node in reversed(nodes):
         node.update_best(tree, score)
 
@@ -226,11 +254,15 @@ def mct_search(node, gen, goal_typ, expand_visits, num_steps, fitness):
         node.expand(expander)
 
     i = 0
-    while i < num_steps:
-        i += 1
+    while i < num_steps and not node.finished_flag:
         nodes = mct_descend(node, expand_visits, expander)
+        # no need to do playout if the subtree is
+        # fully expanded and
+        if nodes[-1].finished_flag:
+            continue
         tree, score = mct_playout(nodes[-1], gen_one_uf, fitness)
         mct_update(nodes, tree, score)
+        i += 1
 
 
 if __name__ == "__main__":
@@ -269,11 +301,11 @@ if __name__ == "__main__":
         def one_iteration(env):
             evals_before = env.count_evals()
             root = MCTChooseK(UnfinishedLeaf(), max_k=10)
-            mct_search(root, env.gen, goal_typ=env.goal, expand_visits=8, num_steps=1000, fitness=env.fitness)
+            mct_search(root, env.gen, goal_typ=env.goal, expand_visits=8, num_steps=10000, fitness=env.fitness)
             return root.best_score, env.count_evals() - evals_before
 
 
-        experiment_eval(one_iteration, repeat=200, processes=2, make_env=make_env)
+        experiment_eval(one_iteration, repeat=1, processes=2, make_env=make_env)
 
     if not True:
         env = make_env()
