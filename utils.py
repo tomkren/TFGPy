@@ -143,6 +143,13 @@ class PPFunction:
         return self.raw_function.__name__
 
 
+def pp_function(name):
+    def deco(f):
+        return PPFunction(f, name)
+
+    return deco
+
+
 def sample_by_scores(choices, scores):
     assert choices
     assert len(choices) == len(scores)
