@@ -1,4 +1,4 @@
-from sub import mgu, Sub
+from sub import mgu, Sub, dot
 from typ import fresh, is_fun_type, split_fun_type, new_var, TypTerm
 
 
@@ -133,10 +133,13 @@ class App(AppTree):
         return self.fun.get_unfinished_leafs().extend(self.arg.get_unfinished_leafs())
 
     def replace_unfinished_leafs_raw(self, new_subtrees):
-        fun_new = self.fun.replace_unfinished_leafs(new_subtrees)
-        arg_new = self.arg.replace_unfinished_leafs(new_subtrees)
-        typ_new = None  # TODO !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-        return App(fun_new, arg_new, typ_new)
+        # možnost 1) zunifikovat minulej typ s tim novym a něco jak zeman
+        # option (2) vracet substituci jak mazák
+        # Any other option ?
+        fun_new, fun_sub = self.fun.replace_unfinished_leafs(new_subtrees)
+        arg_new, arg_sub = self.arg.replace_unfinished_leafs(new_subtrees)
+        sigma = dot(arg_sub, fun_sub)
+        return App(fun_new, arg_new, sigma(self.typ)), sigma
 
     def is_skeleton_of(self, tree):
         return (isinstance(tree, UnfinishedLeaf)
@@ -191,7 +194,7 @@ class Leaf(AppTree):
         return []
 
     def replace_unfinished_leafs_raw(self, new_subtrees):
-        return self
+        return self, Sub()
 
     def is_skeleton_of(self, tree):
         return (isinstance(tree, UnfinishedLeaf)
@@ -242,7 +245,14 @@ class UnfinishedLeaf(Leaf):
 
     def replace_unfinished_leafs_raw(self, new_subtrees):
         assert len(new_subtrees) > 0
-        return new_subtrees.pop(0)
+
+        subtree = new_subtrees.pop(0)
+
+        mu = mgu(self.typ, subtree.typ)
+
+        assert not mu.is_failed()
+
+        return subtree, mu
 
     def is_skeleton_of(self, tree):
         return True
