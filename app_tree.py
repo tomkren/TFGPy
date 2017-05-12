@@ -1,3 +1,4 @@
+from functools import reduce
 from itertools import chain
 
 from sub import mgu
@@ -59,10 +60,13 @@ class AppTree:
 
     def is_finished(self):
         counts = self.count_nodes()
-        return counts[UnfinishedLeaf] == 0
+        return UnfinishedLeaf not in counts
 
     def eval_str(self):
         return str(self)
+
+    def map_reduce(self, mapper, reducer):
+        return mapper(self)
 
 
 class App(AppTree):
@@ -118,6 +122,12 @@ class App(AppTree):
         for t, c in chain(self.fun.count_nodes().items(), self.arg.count_nodes().items()):
             counts[t] = counts.get(t, 0) + c
         return counts
+
+    def map_reduce(self, mapper, reducer):
+        a = mapper(self)
+        b = self.fun.map_reduce(mapper, reducer)
+        c = self.arg.map_reduce(mapper, reducer)
+        return reducer(reducer(a, b), c)
 
 
 class Leaf(AppTree):
