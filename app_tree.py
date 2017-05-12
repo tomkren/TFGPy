@@ -1,3 +1,5 @@
+from itertools import chain
+
 from sub import mgu
 from typ import fresh, is_fun_type, split_fun_type
 
@@ -44,7 +46,11 @@ class AppTree:
         raise NotImplementedError
 
     def count_finished_nodes(self):
-        raise NotImplementedError
+        counts = self.count_nodes()
+        return counts[App] + counts[Leaf] - counts[UnfinishedLeaf]
+
+    def count_nodes(self):
+        return {type(self): 1}
 
     def is_finished(self):
         if self.finished_flag is None:
@@ -106,8 +112,11 @@ class App(AppTree):
                     and self.fun.is_skeleton_of(tree.fun)
                     and self.arg.is_skeleton_of(tree.arg)))
 
-    def count_finished_nodes(self):
-        return 1 + self.fun.count_finished_nodes() + self.arg.count_finished_nodes()
+    def count_nodes(self):
+        counts = {type(self): 1}
+        for t, c in chain(self.fun.count_nodes().items(), self.arg.count_nodes().items()):
+            counts[t] = counts.get(t, 0) + c
+        return counts
 
     def is_finished_raw(self):
         return self.fun.is_finished_raw() and self.arg.is_finished_raw()
@@ -152,9 +161,6 @@ class Leaf(AppTree):
                 or (isinstance(tree, Leaf)
                     and self.sym == tree.sym))
 
-    def count_finished_nodes(self):
-        return 1
-
     def is_finished_raw(self):
         return True
 
@@ -180,9 +186,6 @@ class UnfinishedLeaf(Leaf):
 
     def is_skeleton_of(self, tree):
         return True
-
-    def count_finished_nodes(self):
-        return 0
 
     def is_finished_raw(self):
         return False
