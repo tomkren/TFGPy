@@ -194,15 +194,16 @@ class TreeStats:
 
     def pretty_str(self):
         l = []
-        for typ, size2stats in tstats.typ2size2stats.items():
+        for typ, size2stats in self.typ2size2stats.items():
             l.append('=' * 10 + str(typ) + '=' * 10)
             for k, stats in sorted(size2stats.items()):
                 t, rs = max(stats.by_tree.items(), key=(
                     lambda t: t[1].avg()
-                    #lambda t: t[1].biggest
+                    # lambda t: t[1].biggest
                 ))
                 l.append("k=%d %d %.3f %s" % (k, rs.count, rs.avg(), t))
         return '\n'.join(l)
+
 
 #
 #   MCTS - Monte Carlo Tree Search
@@ -322,8 +323,7 @@ def mct_update(nodes, tree, score):
 
 
 @tracer_deco.tracer_deco(force_enable=True)
-def mct_search(node, num_steps, fitness, finish, successors, expand_visits=8):
-    tstats = TreeStats()
+def mct_search(node, num_steps, fitness, finish, successors, expand_visits=8, tree_stats=None):
     if node.children is None:
         node.expand(successors)
 
@@ -336,10 +336,11 @@ def mct_search(node, num_steps, fitness, finish, successors, expand_visits=8):
             continue
         tree, score = mct_playout(nodes[-1], finish, fitness)
         mct_update(nodes, tree, score)
-        tstats.update(tree.uf_tree, score)
+        if tree_stats is not None:
+            tree_stats.update(tree.uf_tree, score)
         i += 1
 
-    return tstats
+    return tree_stats
 
 
 if __name__ == "__main__":
@@ -423,22 +424,25 @@ if __name__ == "__main__":
 
         experiment_eval(one_iteration, repeat=2, processes=2, make_env=make_env)
 
-    if False:
+    if not False:
         # MCTS
         def one_iteration(env):
             evals_before = env.count_evals()
             time_before = time.time()
             root = MCTNode(ChooseKTNode(UnfinishedLeaf(), 20))
+            tree_stats = None
+            #env.gen.tree_stats = tree_stats
             mct_search(root, expand_visits=8, num_steps=10000,
                        fitness=env.t_fitness,
                        finish=env.t_finish,
-                       successors=env.t_successors)
+                       successors=env.t_successors,
+                       tree_stats=tree_stats)
             return root.best_score, env.count_evals() - evals_before, time.time() - time_before
 
 
         experiment_eval(one_iteration, repeat=10, processes=2, make_env=make_env)
 
-    if not False:
+    if False:
         # MCTS - one run
         env = make_env()
         # tracer_deco.enable_tracer = True
@@ -446,11 +450,14 @@ if __name__ == "__main__":
         # very slow for large k = 20
         # random.seed(5)
         root = MCTNode(ChooseKTNode(UnfinishedLeaf(), 20))
-        tstats = mct_search(root, expand_visits=2, num_steps=20000,
-                            fitness=env.t_fitness,
-                            finish=env.t_finish,
-                            successors=env.t_successors)
+        tree_stats = TreeStats()
+        env.gen.tree_stats = tree_stats
+        mct_search(root, expand_visits=2, num_steps=1000,
+                   fitness=env.t_fitness,
+                   finish=env.t_finish,
+                   successors=env.t_successors,
+                   tree_stats=tree_stats)
+        print('=' * 20)
+        print(tree_stats.pretty_str())
         print('=' * 20)
         print(root.pretty_str())
-        print(tstats.pretty_str())
-

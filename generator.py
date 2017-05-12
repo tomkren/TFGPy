@@ -2,13 +2,15 @@ import random
 from collections import OrderedDict
 
 import sub
+import utils
 from app_tree import Leaf, App, UnfinishedLeaf
 from cache import Cache
 from context import Context
 from normalization import Normalizator
 from sub import mgu, Mover, SubRes, PreTs1Res, PreSubRes
-from tracer_deco import tracer_deco
 from typ import Typ, fresh, new_var, TypTerm
+
+C_GEN_TREE_STATS = 0.2
 
 
 def ts1_static(gamma: Context, typ: Typ, n):
@@ -52,10 +54,11 @@ def pack(typ, n, pre_sub_results):
 
 
 class Generator:
-    def __init__(self, gamma, cache=Cache, normalizator=Normalizator):
+    def __init__(self, gamma, cache=Cache, normalizator=Normalizator, tree_stats=None):
         self.gamma = gamma
         self.cache = cache(self)
         self.normalizator = normalizator
+        self.tree_stats = tree_stats
 
     def __str__(self):
         return "Generator(...)"
@@ -183,6 +186,10 @@ class Generator:
         assert k >= 1
 
         if isinstance(uf_tree, UnfinishedLeaf):
+            if self.tree_stats is not None and random.random() < C_GEN_TREE_STATS:
+                ret = self.gen_one_treestats_uf(k, typ, n)
+                if ret is not None:
+                    return ret
             return self.gen_one_raw(ball, k, typ, n)
 
         if isinstance(uf_tree, Leaf):
@@ -288,3 +295,22 @@ class Generator:
         tree_fx = App(tree_f, tree_x, sigma_fx(typ))
 
         return tree_fx, n
+
+    def gen_one_treestats_uf(self, k, typ, n):
+        size2stats = self.tree_stats.typ2size2stats.get(typ, None)
+        if size2stats is None:
+            return None
+
+        stats = size2stats.get(k, None)
+        if stats is None:
+            return None
+
+        if not stats.by_tree:
+            return None
+
+        bt = list(stats.by_tree.items())
+        trees = [b[0] for b in bt]
+        scores = [b[1].avg() for b in bt]
+
+        tree = utils.sample_by_scores(trees, scores)
+        return tree, n
