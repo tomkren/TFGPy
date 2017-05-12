@@ -174,7 +174,10 @@ class TypSkolem(TypSymbol):
 
 
 T_ARROW = TypSymbol('->')
+
 T_INTERNAL_PAIR = TypSymbol('_P_')
+INTERNAL_PAIR_CONSTRUCTOR_SYM = '_p_'
+
 
 class TypTerm(Typ):
 
@@ -183,9 +186,13 @@ class TypTerm(Typ):
         return TypTerm((T_ARROW, left, right))
 
     @staticmethod
+    def make_internal_pair(a, b):
+        return TypTerm((T_INTERNAL_PAIR, a, b))
+
+    @staticmethod
     def make_internal_tuple(xs):
         assert len(xs) > 0
-        return reduce(lambda x, y: TypTerm((T_INTERNAL_PAIR, y, x)), xs[::-1])
+        return reduce(lambda x, y: TypTerm.make_internal_pair(y, x), xs[::-1])
 
     def __init__(self, arguments):
         assert isinstance(arguments, tuple)

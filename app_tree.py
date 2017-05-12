@@ -1,5 +1,5 @@
 from sub import mgu, Sub, dot
-from typ import fresh, is_fun_type, split_fun_type, new_var, TypTerm
+from typ import fresh, is_fun_type, split_fun_type, new_var, TypTerm, INTERNAL_PAIR_CONSTRUCTOR_SYM
 
 
 class AppTree:
@@ -49,6 +49,12 @@ class AppTree:
         raise NotImplementedError
 
     def get_unfinished_leafs(self):
+        raise NotImplementedError
+
+    def lower_size_bound(self):
+        raise NotImplementedError
+
+    def size(self):
         raise NotImplementedError
 
     def replace_unfinished_leafs(self, new_subtrees):
@@ -130,7 +136,16 @@ class App(AppTree):
         return ret
 
     def get_unfinished_leafs(self):
-        return self.fun.get_unfinished_leafs().extend(self.arg.get_unfinished_leafs())
+        ufs1 = self.fun.get_unfinished_leafs()
+        ufs2 = self.arg.get_unfinished_leafs()
+        ufs1.extend(ufs2)
+        return ufs1
+
+    def lower_size_bound(self):
+        return self.fun.lower_size_bound() + self.arg.lower_size_bound()
+
+    def size(self):
+        return self.fun.size() + self.arg.size()
 
     def replace_unfinished_leafs_raw(self, new_subtrees):
         # možnost 1) zunifikovat minulej typ s tim novym a něco jak zeman
@@ -193,6 +208,12 @@ class Leaf(AppTree):
     def get_unfinished_leafs(self):
         return []
 
+    def lower_size_bound(self):
+        return 1
+
+    def size(self):
+        return 1
+
     def replace_unfinished_leafs_raw(self, new_subtrees):
         return self, Sub()
 
@@ -215,8 +236,13 @@ class UnfinishedLeaf(Leaf):
     def __repr__(self):
         return "UnfinishedLeaf(%s)" % repr(self.typ)
 
+    # def __str__(self):
+    #    typ_str = '<'+str(self.typ)+'>' if self.typ else ''
+    #    return str(self.sym + typ_str)
+
     def apply_sub(self, sub):
-        raise NotImplementedError
+        # raise NotImplementedError
+        return UnfinishedLeaf(sub(self.typ))
 
     def is_well_typed_acc(self, gamma, n):
         return False, None
@@ -243,15 +269,17 @@ class UnfinishedLeaf(Leaf):
     def get_unfinished_leafs(self):
         return [self]
 
+    def lower_size_bound(self):
+        return 1
+
+    def size(self):
+        return 0
+
     def replace_unfinished_leafs_raw(self, new_subtrees):
         assert len(new_subtrees) > 0
-
         subtree = new_subtrees.pop(0)
-
         mu = mgu(self.typ, subtree.typ)
-
         assert not mu.is_failed()
-
         return subtree, mu
 
     def is_skeleton_of(self, tree):
@@ -265,8 +293,6 @@ class UnfinishedLeaf(Leaf):
 
 
 UNFINISHED_APP = App(UnfinishedLeaf(), UnfinishedLeaf())
-
-INTERNAL_PAIR_CONSTRUCTOR_SYM = '_p_'
 
 
 def split_internal_pair(tree):

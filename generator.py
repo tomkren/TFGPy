@@ -110,12 +110,23 @@ class Generator:
         return ret
 
     def subs_uf_smart(self, uf_tree, k, n):
+
         uf_leafs = uf_tree.get_unfinished_leafs()
-        if len(uf_leafs) > 0:
-            hax_typ = TypTerm.make_internal_tuple((uf_leaf.typ for uf_leaf in uf_leafs))
-            return self.subs(k, hax_typ, n)
-        else:
+
+        num_uf_leafs = len(uf_leafs)
+        num_leafs = uf_tree.size()
+
+        if num_leafs + num_uf_leafs > k:
+            return []
+
+        if num_uf_leafs > 0:
+            hax_typ = TypTerm.make_internal_tuple([uf_leaf.typ for uf_leaf in uf_leafs])
+            k_hax_pair = k - num_leafs + num_uf_leafs-1
+            return self.subs(k_hax_pair, hax_typ, n)
+        elif num_leafs == k:
             return [sub.PreSubRes(1, sub.Sub())]
+        else:
+            return []
 
     def subs_uf(self, uf_tree, k, typ, n):
         if isinstance(uf_tree, UnfinishedLeaf):
