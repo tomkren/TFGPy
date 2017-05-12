@@ -1,16 +1,17 @@
 import math
 import random
 from functools import wraps
+from itertools import chain
 
-import sys
+import time
 
 import generator
 import test_montecarlo
-import utils
-from app_tree import App, UnfinishedLeaf, UNFINISHED_APP
-from app_tree import Leaf
 import tracer_deco
-from utils import experiment_eval, PPFunction
+import utils
+from app_tree import App, UnfinishedLeaf, UNFINISHED_APP, AppTree
+from app_tree import Leaf
+from utils import experiment_eval
 
 # 0.5 is a reasonable value
 # but it depends on the fitness function at hand
@@ -137,6 +138,56 @@ def nested_mc_search(root_tree, max_level, fitness, finish, successors, advance)
 
 
 #
+#   Statistics on subtrees
+#       - to be used for heuristics during search / smart playouts
+#
+
+
+class RunningStat:
+    def __init__(self, count=0, sum=0):
+        self.count = count
+        self.sum = sum
+
+    def add(self, value):
+        self.count += 1
+        self.sum += value
+
+    def avg(self):
+        if not self.count:
+            raise ValueError
+        return self.sum / self.count
+
+
+class Stats:
+    def __init__(self):
+        self.total = RunningStat()
+        self.by_tree = {}
+
+    def update(self, tree, score):
+        self.total.add(score)
+        self.by_tree.setdefault(tree, RunningStat()).add(score)
+
+
+class TreeStats:
+    def __init__(self):
+        self.typ2size2stats = {}
+
+    def update(self, root, score):
+        assert isinstance(root, AppTree)
+
+        def update_one(tree):
+            assert tree.typ is not None
+            assert tree.is_finished()
+            counts = tree.count_nodes()
+            k = counts[Leaf]
+
+            size2stats = self.typ2size2stats.setdefault(tree.typ, {})
+            size2stats.setdefault(k, Stats()).update(tree, score)
+
+        root.map_reduce(update_one, (lambda *args: None))
+
+
+#
 #   MCTS - Monte Carlo Tree Search
 #
 
@@ -197,6 +248,16 @@ class MCTNode:
 
         return self.children
 
+    def pretty_str(self):
+        l = []
+        l.append("best=%s" % (self.best))
+        l.append("%d %.3f  %s" % (self.visits, self.best_score, self.tree))
+        # pad the visits, s.t. they have the same len
+        fs = "%%%dd" % (len(str(self.visits)))
+        for c in self.children:
+            l.append("%s %.3f = %.3f  %s" % (fs % (c.visits), c.best_score, c.urgency(self.visits), c.tree))
+        return '\n'.join(l)
+
 
 @tracer_deco.tracer_deco()
 def mct_descend(node, expand_visits, successors, sample_by_urgency=False):
@@ -231,12 +292,8 @@ def mct_descend(node, expand_visits, successors, sample_by_urgency=False):
 @tracer_deco.tracer_deco(log_ret=True, ret_pp=(lambda t: "%.3f %s" % (t[1], t[0])))
 def mct_playout(node, finish, fitness):
     assert not node.finished_flag
-    if node.tree.is_finished():
-        tree = node.tree
-    else:
-        tree = finish(node.tree)
-
-    return tree, fitness(tree)
+    finished_tree = finish(node.tree)
+    return finished_tree, fitness(finished_tree)
 
 
 def mct_update(nodes, tree, score):
@@ -249,6 +306,7 @@ def mct_update(nodes, tree, score):
 
 @tracer_deco.tracer_deco(force_enable=True)
 def mct_search(node, num_steps, fitness, finish, successors, expand_visits=8):
+    tstats = TreeStats()
     if node.children is None:
         node.expand(successors)
 
@@ -261,7 +319,10 @@ def mct_search(node, num_steps, fitness, finish, successors, expand_visits=8):
             continue
         tree, score = mct_playout(nodes[-1], finish, fitness)
         mct_update(nodes, tree, score)
+        tstats.update(tree.uf_tree, score)
         i += 1
+
+    return tstats
 
 
 if __name__ == "__main__":
@@ -283,12 +344,19 @@ if __name__ == "__main__":
                 @utils.pp_function('fitness()')
                 def ffitness(tree):
                     assert isinstance(tree, UFTNode)
+                    # make sure we only run fitness on finished,
+                    # fully typed trees
+                    assert tree.uf_tree.typ is not None
                     return self.fitness(tree.uf_tree)
 
                 @utils.pp_function('finish()')
                 def ffinish(tree):
                     assert isinstance(tree, UFTNode)
-                    return UFTNode(self.gen.gen_one_uf(tree.uf_tree, tree.k, self.goal), tree.k)
+                    assert tree.uf_tree.typ is None
+
+                    finished_tree = self.gen.gen_one_uf(tree.uf_tree, tree.k, self.goal)
+                    assert finished_tree.typ is not None
+                    return UFTNode(finished_tree, tree.k)
 
                 @utils.pp_function('successors()')
                 def fsuccessors(tree):
@@ -323,48 +391,47 @@ if __name__ == "__main__":
         print(env.fitness(indiv))
 
     if False:
+        # Nested MC Search
         def one_iteration(env):
             evals_before = env.count_evals()
+            time_before = time.time()
             indiv = nested_mc_search(ChooseKTNode(UnfinishedLeaf(), 20),
-                                     max_level=2,
+                                     max_level=3,
                                      fitness=env.t_fitness,
                                      finish=env.t_finish,
                                      successors=env.t_successors,
                                      advance=env.t_advance)
-            return env.fitness(indiv.uf_tree), env.count_evals() - evals_before
+            return env.fitness(indiv.uf_tree), env.count_evals() - evals_before, time.time() - time_before
 
 
-        experiment_eval(one_iteration, repeat=100, processes=2, make_env=make_env)
+        experiment_eval(one_iteration, repeat=2, processes=2, make_env=make_env)
 
-    if False:
+    if not False:
+        # MCTS
         def one_iteration(env):
             evals_before = env.count_evals()
-            root = MCTNode(ChooseKTNode(UnfinishedLeaf(), 10))
+            time_before = time.time()
+            root = MCTNode(ChooseKTNode(UnfinishedLeaf(), 20))
             mct_search(root, expand_visits=8, num_steps=10000,
                        fitness=env.t_fitness,
                        finish=env.t_finish,
                        successors=env.t_successors)
-            return root.best_score, env.count_evals() - evals_before
+            return root.best_score, env.count_evals() - evals_before, time.time() - time_before
 
 
-        experiment_eval(one_iteration, repeat=1, processes=2, make_env=make_env)
+        experiment_eval(one_iteration, repeat=10, processes=2, make_env=make_env)
 
-    if not False:
+    if False:
+        # MCTS - one run
         env = make_env()
-        tracer_deco.enable_tracer = True
+        # tracer_deco.enable_tracer = True
         # TODO DEBUG
         # very slow for large k = 20
-        random.seed(5)
-        # root = MCTNode(UnfinishedLeaf(), k=20)
-        root = MCTNode(ChooseKTNode(UnfinishedLeaf(), 10))
-        mct_search(root, expand_visits=2, num_steps=50,
-                   fitness=env.t_fitness,
-                   finish=env.t_finish,
-                   successors=env.t_successors)
+        # random.seed(5)
+        root = MCTNode(ChooseKTNode(UnfinishedLeaf(), 20))
+        tstats = mct_search(root, expand_visits=2, num_steps=100,
+                            fitness=env.t_fitness,
+                            finish=env.t_finish,
+                            successors=env.t_successors)
         print('=' * 20)
-        print(root.best)
-        print(root.best_score)
-        print(root.visits, root.tree.uf_tree)
-        print("children")
-        for c in root.children[0].children:
-            print(c.visits, "%.3f" % c.urgency(root.visits), c.tree.uf_tree)
+        print(root.pretty_str())

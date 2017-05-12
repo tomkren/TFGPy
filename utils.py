@@ -104,19 +104,24 @@ def experiment_eval(one_iteration, make_env, repeat=10, processes=1):
 
     pool = multiprocessing.Pool(processes=processes, initializer=make_worker_env)
 
-    fs = []
+    scores = []
+    times = []
     total_num_evals = 0
     try:
-        for score, num_evals in pool.imap_unordered(worker_run_with_env, (one_iteration for _ in range(repeat))):
+        for score, num_evals, time_spent in pool.imap_unordered(worker_run_with_env, (one_iteration for _ in range(repeat))):
             print('.', end='', flush=True)
-            fs.append(score)
+            scores.append(score)
+            times.append(time_spent)
             total_num_evals += num_evals
     finally:
         print()
-        print_it_stats(fs, flush=True)
-        print("num_evals=%d" % total_num_evals)
+        print("score\t", end='')
+        print_it_stats(scores)
+        print("time\t", end='')
+        print_it_stats(times, flush=True)
+        print("%d total evals" % total_num_evals)
 
-    return fs
+    return scores
 
 
 def print_it_stats(iterator, flush=False):
