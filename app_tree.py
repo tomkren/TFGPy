@@ -6,7 +6,7 @@ from typ import fresh, is_fun_type, split_fun_type
 
 class AppTree:
     def __init__(self):
-        self.finished_flag = None
+        self.counts = None
 
     def is_well_typed(self, gamma):
         is_ok, _ = self.is_well_typed_acc(gamma, 0)
@@ -50,15 +50,16 @@ class AppTree:
         return counts[App] + counts[Leaf] - counts[UnfinishedLeaf]
 
     def count_nodes(self):
+        if self.counts is None:
+            self.counts = self.count_nodes_raw()
+        return self.counts
+
+    def count_nodes_raw(self):
         return {type(self): 1}
 
     def is_finished(self):
-        if self.finished_flag is None:
-            self.finished_flag = self.is_finished_raw()
-        return self.finished_flag
-
-    def is_finished_raw(self):
-        raise NotImplementedError
+        counts = self.count_nodes()
+        return counts[UnfinishedLeaf] == 0
 
     def eval_str(self):
         return str(self)
@@ -112,14 +113,11 @@ class App(AppTree):
                     and self.fun.is_skeleton_of(tree.fun)
                     and self.arg.is_skeleton_of(tree.arg)))
 
-    def count_nodes(self):
+    def count_nodes_raw(self):
         counts = {type(self): 1}
         for t, c in chain(self.fun.count_nodes().items(), self.arg.count_nodes().items()):
             counts[t] = counts.get(t, 0) + c
         return counts
-
-    def is_finished_raw(self):
-        return self.fun.is_finished_raw() and self.arg.is_finished_raw()
 
 
 class Leaf(AppTree):
@@ -161,9 +159,6 @@ class Leaf(AppTree):
                 or (isinstance(tree, Leaf)
                     and self.sym == tree.sym))
 
-    def is_finished_raw(self):
-        return True
-
 
 class UnfinishedLeaf(Leaf):
     def __init__(self):
@@ -186,9 +181,6 @@ class UnfinishedLeaf(Leaf):
 
     def is_skeleton_of(self, tree):
         return True
-
-    def is_finished_raw(self):
-        return False
 
 
 UNFINISHED_APP = App(UnfinishedLeaf(), UnfinishedLeaf())
