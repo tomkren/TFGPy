@@ -147,10 +147,16 @@ class RunningStat:
     def __init__(self, count=0, sum=0):
         self.count = count
         self.sum = sum
+        self.biggest = None
+        self.smallest = None
 
     def add(self, value):
         self.count += 1
         self.sum += value
+        if self.biggest is None or value > self.biggest:
+            self.biggest = value
+        if self.smallest is None or value < self.smallest:
+            self.smallest = value
 
     def avg(self):
         if not self.count:
@@ -186,6 +192,17 @@ class TreeStats:
 
         root.map_reduce(update_one, (lambda *args: None))
 
+    def pretty_str(self):
+        l = []
+        for typ, size2stats in tstats.typ2size2stats.items():
+            l.append('=' * 10 + str(typ) + '=' * 10)
+            for k, stats in sorted(size2stats.items()):
+                t, rs = max(stats.by_tree.items(), key=(
+                    lambda t: t[1].avg()
+                    #lambda t: t[1].biggest
+                ))
+                l.append("k=%d %d %.3f %s" % (k, rs.count, rs.avg(), t))
+        return '\n'.join(l)
 
 #
 #   MCTS - Monte Carlo Tree Search
@@ -406,7 +423,7 @@ if __name__ == "__main__":
 
         experiment_eval(one_iteration, repeat=2, processes=2, make_env=make_env)
 
-    if not False:
+    if False:
         # MCTS
         def one_iteration(env):
             evals_before = env.count_evals()
@@ -421,7 +438,7 @@ if __name__ == "__main__":
 
         experiment_eval(one_iteration, repeat=10, processes=2, make_env=make_env)
 
-    if False:
+    if not False:
         # MCTS - one run
         env = make_env()
         # tracer_deco.enable_tracer = True
@@ -429,9 +446,11 @@ if __name__ == "__main__":
         # very slow for large k = 20
         # random.seed(5)
         root = MCTNode(ChooseKTNode(UnfinishedLeaf(), 20))
-        tstats = mct_search(root, expand_visits=2, num_steps=100,
+        tstats = mct_search(root, expand_visits=2, num_steps=20000,
                             fitness=env.t_fitness,
                             finish=env.t_finish,
                             successors=env.t_successors)
         print('=' * 20)
         print(root.pretty_str())
+        print(tstats.pretty_str())
+
