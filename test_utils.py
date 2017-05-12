@@ -42,7 +42,7 @@ class TestSampleByScores(unittest.TestCase):
             picks[take] += 1
 
         # XXX
-        self.assertTrue(all(p >= 9800 for p in picks))
+        self.assertTrue(all(p >= 9700 for p in picks))
 
     def test_small(self):
         self.assertEqual(
