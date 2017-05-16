@@ -122,24 +122,27 @@ def check_successors(tester, generator, k, goal_typ):
 
 def check_successors_acc(tester, generator, k, goal_typ, parent_skeleton, parent_skeleton_smart, all_trees):
 
+    def print_expansion(ps, ss, start_time):
+        delta_time = time.time() - start_time
+        print('  ', '%.2f' % delta_time, ps, ' --> ', len(ss), ':', ', '.join((str(s) for s in ss)))
+
     t = time.time()
     skeletons = parent_skeleton.successors(generator, k, goal_typ)
-    dt = time.time() - t
-    print('  ', '%.2f' % dt, parent_skeleton, ' --> ', len(skeletons), ':', ', '.join((str(s) for s in skeletons)))
+    print_expansion(parent_skeleton, skeletons, t)
 
     t = time.time()
-    skeletons_smart = parent_skeleton_smart.successors_smart(generator, k) if parent_skeleton_smart else None
-    dt = time.time() - t
-    print('  ', '%.2f' % dt, parent_skeleton_smart, ' ==> ', len(skeletons_smart), ':', ', '.join((str(s) for s in skeletons_smart)))
+    skeletons_smart = parent_skeleton_smart.successors_smart(generator, k)
+    print_expansion(parent_skeleton_smart, skeletons_smart, t)
 
     tester.assertEqual(len(skeletons), len(skeletons_smart))
+    tester.assertEqual([str(s) for s in skeletons], [str(s) for s in skeletons_smart])
 
     if not skeletons:
         tester.assertEqual(len(all_trees), 1)
         return
 
     skeleton2trees = {}
-    sk2sk_smart = {} # {sk: sk_smart for (sk, sk_smart) in zip(skeletons, skeletons_smart)}
+    sk2sk_smart = {}
 
     for (sk, sk_smart) in zip(skeletons, skeletons_smart):
         print('    ', sk)
