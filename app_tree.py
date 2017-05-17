@@ -1,8 +1,7 @@
-from functools import reduce
 from itertools import chain
 
-from sub import mgu
-from typ import fresh, is_fun_type, split_fun_type
+import sub
+from typ import fresh, is_fun_type, split_fun_type, new_var, TypTerm, INTERNAL_PAIR_CONSTRUCTOR_SYM
 
 
 class AppTree:
@@ -40,7 +39,36 @@ class AppTree:
                 ret.append(naive_succ)
         return ret
 
+    def successors_smart(self, gen, k):
+        ret = []
+        for uf_tree, sigma, n in self.successors_typed(gen.gamma, 0):
+            num = gen.get_num_uf_smart(uf_tree, k)
+            if num > 0:
+                ret.append(uf_tree)
+        return ret
+
     def successors_naive(self, gamma):
+        raise NotImplementedError
+
+    def successors_typed(self, gamma, n):
+        raise NotImplementedError
+
+    def get_unfinished_leafs(self):
+        raise NotImplementedError
+
+    def lower_size_bound(self):
+        raise NotImplementedError
+
+    def size(self):
+        raise NotImplementedError
+
+    def replace_unfinished_leafs(self, new_subtrees):
+        acc = list(new_subtrees)
+        ret = self.replace_unfinished_leafs_raw(acc)
+        assert len(acc) == 0
+        return ret
+
+    def replace_unfinished_leafs_raw(self, new_subtrees):
         raise NotImplementedError
 
     def is_skeleton_of(self, tree):
@@ -111,6 +139,42 @@ class App(AppTree):
             return [App(fs, self.arg) for fs in fun_s]
         return [App(self.fun, ass) for ass in self.arg.successors_naive(gamma)]
 
+    def successors_typed(self, gamma, n):
+        n = self.typ.get_next_var_id(n)
+        ret = []
+        f_succs = self.fun.successors_typed(gamma, n)
+        if f_succs:
+            for tree_f, sub_f, n1 in f_succs:
+                tree_x = self.arg.apply_sub(sub_f)
+                ret.append((App(tree_f, tree_x, sub_f(self.typ)), sub_f, n1))
+        else:
+            x_succs = self.arg.successors_typed(gamma, n)
+            for tree_x, sub_x, n1 in x_succs:
+                tree_f = self.fun.apply_sub(sub_x)
+                ret.append((App(tree_f, tree_x, sub_x(self.typ)), sub_x, n1))
+        return ret
+
+    def get_unfinished_leafs(self):
+        ufs1 = self.fun.get_unfinished_leafs()
+        ufs2 = self.arg.get_unfinished_leafs()
+        ufs1.extend(ufs2)
+        return ufs1
+
+    def lower_size_bound(self):
+        return self.fun.lower_size_bound() + self.arg.lower_size_bound()
+
+    def size(self):
+        return self.fun.size() + self.arg.size()
+
+    def replace_unfinished_leafs_raw(self, new_subtrees):
+        # možnost 1) zunifikovat minulej typ s tim novym a něco jak zeman
+        # option (2) vracet substituci jak mazák
+        # Any other option ?
+        fun_new, fun_sub = self.fun.replace_unfinished_leafs(new_subtrees)
+        arg_new, arg_sub = self.arg.replace_unfinished_leafs(new_subtrees)
+        sigma = sub.dot(arg_sub, fun_sub)
+        return App(fun_new, arg_new, sigma(self.typ)), sigma
+
     def is_skeleton_of(self, tree):
         return (isinstance(tree, UnfinishedLeaf)
                 or (isinstance(tree, App)
@@ -157,12 +221,27 @@ class Leaf(AppTree):
 
         t_s = gamma.ctx[self.sym].typ
         fr = fresh(t_s, self.typ, n)
-        mu = mgu(self.typ, fr.typ)
+        mu = sub.mgu(self.typ, fr.typ)
 
         return not mu.is_failed(), fr.n
 
     def successors_naive(self, gamma):
         return []
+
+    def successors_typed(self, gamma, n):
+        return []
+
+    def get_unfinished_leafs(self):
+        return []
+
+    def lower_size_bound(self):
+        return 1
+
+    def size(self):
+        return 1
+
+    def replace_unfinished_leafs_raw(self, new_subtrees):
+        return self, sub.Sub()
 
     def is_skeleton_of(self, tree):
         return (isinstance(tree, UnfinishedLeaf)
@@ -171,14 +250,19 @@ class Leaf(AppTree):
 
 
 class UnfinishedLeaf(Leaf):
-    def __init__(self):
-        super().__init__("?")
+    def __init__(self, typ=None):
+        super().__init__("?", typ)
 
     def __repr__(self):
-        return "UnfinishedLeaf()"
+        return "UnfinishedLeaf(%s)" % repr(self.typ)
+
+    # def __str__(self):
+    #    typ_str = '<'+str(self.typ)+'>' if self.typ else ''
+    #    return str(self.sym + typ_str)
 
     def apply_sub(self, sub):
-        raise NotImplementedError
+        # raise NotImplementedError
+        return UnfinishedLeaf(sub(self.typ))
 
     def is_well_typed_acc(self, gamma, n):
         return False, None
@@ -189,8 +273,56 @@ class UnfinishedLeaf(Leaf):
             ret.append(Leaf(ctx_declaration.sym))
         return ret
 
+    def successors_typed(self, gamma, n):
+        alpha, n1 = new_var(self.typ, n)
+        typ_f = TypTerm.make_arrow(alpha, self.typ)
+        ret = [(App(UnfinishedLeaf(typ_f), UnfinishedLeaf(alpha), self.typ), sub.Sub(), n1)]
+        for ctx_declaration in gamma.ctx.values():
+            fresh_res = fresh(ctx_declaration.typ, self.typ, n)
+            mu = sub.mgu(self.typ, fresh_res.typ)
+            if not mu.is_failed():
+                sigma = mu.restrict(self.typ)
+                leaf = Leaf(ctx_declaration.sym, sigma(self.typ))
+                ret.append((leaf, sigma, fresh_res.n))
+        return ret
+
+    def get_unfinished_leafs(self):
+        return [self]
+
+    def lower_size_bound(self):
+        return 1
+
+    def size(self):
+        return 0
+
+    def replace_unfinished_leafs_raw(self, new_subtrees):
+        assert len(new_subtrees) > 0
+        subtree = new_subtrees.pop(0)
+        mu = sub.mgu(self.typ, subtree.typ)
+        assert not mu.is_failed()
+        return subtree, mu
+
     def is_skeleton_of(self, tree):
         return True
 
 
 UNFINISHED_APP = App(UnfinishedLeaf(), UnfinishedLeaf())
+
+
+def split_internal_pair(tree):
+    if isinstance(tree, App) and isinstance(tree.fun, App) and isinstance(tree.fun.fun, Leaf):
+        if tree.fun.fun.sym == INTERNAL_PAIR_CONSTRUCTOR_SYM:
+            return tree.arg, tree.fun.arg
+    return None, None
+
+
+def split_internal_tuple(tree):
+    ret = []
+    acc = tree
+    while True:
+        head, tail = split_internal_pair(acc)
+        if head is None:
+            ret.append(acc)
+            return ret
+        ret.append(head)
+        acc = tail

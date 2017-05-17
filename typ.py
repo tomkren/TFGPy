@@ -1,7 +1,8 @@
 from collections import OrderedDict
 from collections import namedtuple
+from functools import reduce
 
-import sub
+import sub as sub_m
 import utils
 from utils import make_enum_table
 
@@ -60,7 +61,7 @@ class Typ:
     def skolemize(self):
         acc = {}
         skolemized = self._skolemize_acc(acc)
-        return skolemized, sub.Sub(acc)
+        return skolemized, sub_m.Sub(acc)
 
     def _skolemize_acc(self, acc):
         raise NotImplementedError
@@ -174,11 +175,24 @@ class TypSkolem(TypSymbol):
 
 T_ARROW = TypSymbol('->')
 
+T_INTERNAL_PAIR = TypSymbol('_P_')
+INTERNAL_PAIR_CONSTRUCTOR_SYM = '_p_'
+
 
 class TypTerm(Typ):
+
     @staticmethod
     def make_arrow(left, right):
         return TypTerm((T_ARROW, left, right))
+
+    @staticmethod
+    def make_internal_pair(a, b):
+        return TypTerm((T_INTERNAL_PAIR, a, b))
+
+    @staticmethod
+    def make_internal_tuple(xs):
+        assert len(xs) > 0
+        return reduce(lambda x, y: TypTerm.make_internal_pair(y, x), xs[::-1])
 
     def __init__(self, arguments):
         assert isinstance(arguments, tuple)
@@ -268,4 +282,4 @@ def make_norm_bijection(typ):
     proto_table = make_enum_table(ordered_vars.keys(), TypVar)
     table, rev_table = utils.construct_bijection(proto_table)
 
-    return sub.Sub(table), sub.Sub(rev_table)
+    return sub_m.Sub(table), sub_m.Sub(rev_table)

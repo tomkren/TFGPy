@@ -2,7 +2,7 @@ import copy
 from collections import namedtuple
 
 import utils
-from typ import Typ, TypSymbol, TypVar, TypTerm
+import typ as typ_m
 
 PreTs1Res = namedtuple('PreTs1Res', ['sym', 'sub'])
 Ts1Res = namedtuple('Ts1Res', ['sym', 'sub', 'n'])
@@ -18,7 +18,7 @@ SubRes.__str__ = lambda self: "SubRes<num=%s, n=%s>:\n%s"%(self.num, self.n, sel
 MoverRes = namedtuple('MoverRes', ['sub', 'n'])
 
 
-def mgu(t1: Typ, t2: Typ):
+def mgu(t1, t2):
     # TODO: possibly optimize by removing the non-local
     # variables
 
@@ -28,7 +28,7 @@ def mgu(t1: Typ, t2: Typ):
 
     def mgu_process_var(var, typ):
         nonlocal fail, table, agenda
-        if not isinstance(typ, Typ):
+        if not isinstance(typ, typ_m.Typ):
             fail = "Not a Typ: '%s'" % (typ)
             return
         if typ.contains_var(var):
@@ -59,24 +59,24 @@ def mgu(t1: Typ, t2: Typ):
         if a1 == a2:
             return
 
-        if isinstance(a1, TypSymbol) and isinstance(a2, TypSymbol):
+        if isinstance(a1, typ_m.TypSymbol) and isinstance(a2, typ_m.TypSymbol):
             fail = "Symbols mismatch: '%s' and '%s'" % (a1, a2)
             return
 
-        if isinstance(a1, TypVar):
+        if isinstance(a1, typ_m.TypVar):
             mgu_process_var(a1, a2)
             return
 
-        if isinstance(a2, TypVar):
+        if isinstance(a2, typ_m.TypVar):
             mgu_process_var(a2, a1)
             return
 
-        if isinstance(a1, TypTerm) and isinstance(a2, TypTerm):
+        if isinstance(a1, typ_m.TypTerm) and isinstance(a2, typ_m.TypTerm):
             mgu_process_term(a1, a2)
             return
 
-        if ((isinstance(a1, TypTerm) and isinstance(a2, TypSymbol)) or
-                (isinstance(a2, TypTerm) and isinstance(a1, TypSymbol))):
+        if ((isinstance(a1, typ_m.TypTerm) and isinstance(a2, typ_m.TypSymbol)) or
+                (isinstance(a2, typ_m.TypTerm) and isinstance(a1, typ_m.TypSymbol))):
             fail = "Kind mismatch: '%s' and '%s'" % (a1, a2)
             return
 
@@ -154,7 +154,7 @@ def dot(g, f):
 
 
 class Mover:
-    def __init__(self, typ: Typ, n):
+    def __init__(self, typ, n):
         self.typ = typ
         self.tnvi_0 = typ.get_next_var_id(0)
         self.tnvi_n = max(self.tnvi_0, n)
@@ -172,7 +172,7 @@ class Mover:
             if not isinstance(var.name, int):
                 continue
             if var.name >= self.tnvi_0:
-                delta_table[var] = TypVar(nvi)
+                delta_table[var] = typ_m.TypVar(nvi)
                 nvi += 1
 
         return Sub(delta_table), nvi
@@ -192,7 +192,7 @@ class Mover:
         return MoverRes(moved_sub, nvi), moved_tree
 
     @staticmethod
-    def move_results(typ: Typ, n, results, zipper):
+    def move_results(typ, n, results, zipper):
         m = Mover(typ, n)
         return [zipper(res, m.move_sub(res.sub)) for res in results]
 

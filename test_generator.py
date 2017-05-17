@@ -99,40 +99,70 @@ class TestGen(unittest.TestCase):
             self.assertLess(end - start, REALLY_SHORT_TIME)
 
     def test_skeletons(self):
-        for goal, gamma, max_k in [d1(), d2(), d3()]:
-            g = Generator(gamma)
-            for k in range(1, max_k):
-                check_successors(self, g, k, goal)
+        check_skeletons(self)
+
+
+def check_skeletons(tester):
+    for goal, gamma, max_k in [d1(), d2(), d3()]:
+        print('goal:', goal)
+        gamma.add_internal_pair()
+        g = Generator(gamma)
+        for k in range(1, max_k):
+            print(' k:', k)
+            check_successors(tester, g, k, goal)
 
 
 def check_successors(tester, generator, k, goal_typ):
     skeleton = UnfinishedLeaf()
+    skeleton_smart = UnfinishedLeaf(goal_typ)
     all_trees = set(tr.tree for tr in ts(generator.gamma, k, goal_typ, 0))
     if all_trees:
-        check_successors_acc(tester, generator, k, goal_typ, skeleton, all_trees)
+        check_successors_acc(tester, generator, k, goal_typ, skeleton, skeleton_smart, all_trees)
 
 
-def check_successors_acc(tester, generator, k, goal_typ, parent_skeleton, all_trees):
+def check_successors_acc(tester, generator, k, goal_typ, parent_skeleton, parent_skeleton_smart, all_trees):
+
+    def print_expansion(ps, ss, start_time):
+        delta_time = time.time() - start_time
+        print('  ', '%.2f' % delta_time, ps, ' --> ', len(ss), ':', ', '.join((str(s) for s in ss)))
+
+    t = time.time()
     skeletons = parent_skeleton.successors(generator, k, goal_typ)
+    print_expansion(parent_skeleton, skeletons, t)
+
+    t = time.time()
+    skeletons_smart = parent_skeleton_smart.successors_smart(generator, k)
+    print_expansion(parent_skeleton_smart, skeletons_smart, t)
+
+    tester.assertEqual(len(skeletons), len(skeletons_smart))
+    tester.assertEqual([str(s) for s in skeletons], [str(s) for s in skeletons_smart])
+
     if not skeletons:
         tester.assertEqual(len(all_trees), 1)
         return
 
     skeleton2trees = {}
+    sk2sk_smart = {}
+
+    for (sk, sk_smart) in zip(skeletons, skeletons_smart):
+        print('    ', sk)
+        print('    ', sk_smart)
+        sk2sk_smart[sk] = sk_smart
+
     for tree in all_trees:
         has_skeleton = False
-        for skeleton in skeletons:
-            if skeleton.is_skeleton_of(tree):
+        for sk in skeletons:
+            if sk.is_skeleton_of(tree):
                 tester.assertFalse(has_skeleton)
                 has_skeleton = True
-                skeleton2trees.setdefault(skeleton, []).append(tree)
+                skeleton2trees.setdefault(sk, []).append(tree)
         tester.assertTrue(has_skeleton)
 
     if len(skeletons) != len(skeleton2trees):
         tester.assertEqual(len(skeletons), len(skeleton2trees))
 
-    for skeleton, all_trees_new in skeleton2trees.items():
-        check_successors_acc(tester, generator, k, goal_typ, skeleton, all_trees_new)
+    for sk, all_trees_new in skeleton2trees.items():
+        check_successors_acc(tester, generator, k, goal_typ, sk, sk2sk_smart[sk], all_trees_new)
 
 
 def check_generators_have_same_outputs(generators, goal, max_k):
@@ -163,7 +193,40 @@ def check_generators_have_same_outputs(generators, goal, max_k):
 
 
 if __name__ == "__main__":
-    unittest.main()
+    # unittest.main()
+
+    if True:
+        check_skeletons(TestGen())
+
+    if not True:
+        goal, gamma, max_k = d2()
+
+        print(gamma, '\n')
+
+        gamma.add_internal_pair()
+
+        print(gamma, '\n')
+
+        gen = Generator(gamma)
+        k = 2
+
+        skeleton = UnfinishedLeaf()
+        skeleton_smart = UnfinishedLeaf(goal)
+
+        succs = skeleton.successors(gen, k, goal)
+        print('[', ','.join(str(s) for s in succs), ']')
+
+        succs_smart = skeleton_smart.successors_smart(gen, k)
+        print('[', ','.join(str(s) for s in succs_smart), ']')
+
+        skeleton = succs[0]
+        skeleton_smart = succs_smart[0]
+
+        succs = skeleton.successors(gen, k, goal)
+        print('[', ','.join(str(s) for s in succs), ']')
+
+        succs_smart = skeleton_smart.successors_smart(gen, k)
+        print('[', ','.join(str(s) for s in succs_smart), ']')
 
     if not True:
         goal, gamma, max_k = d3()  # d1()
