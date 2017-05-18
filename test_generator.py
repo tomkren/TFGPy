@@ -102,29 +102,39 @@ class TestGen(unittest.TestCase):
         check_skeletons(self)
 
 
+IS_LOG_PRINTING = False
+
+
+def log(*args):
+    if IS_LOG_PRINTING:
+        print(*args)
+    else:
+        pass
+
+
 def check_skeletons(tester):
     for goal, gamma, max_k in [d1(), d2(), d3()]:
-        print('goal:', goal)
+        log('goal:', goal)
         gamma.add_internal_pair()
         g = Generator(gamma)
         for k in range(1, max_k):
-            print(' k:', k)
+            log(' k:', k)
             check_successors(tester, g, k, goal)
 
 
 def check_successors(tester, generator, k, goal_typ):
-    skeleton = UnfinishedLeaf()
-    skeleton_smart = UnfinishedLeaf(goal_typ)
+    sk = UnfinishedLeaf()
+    sk_smart = UnfinishedLeaf(goal_typ)
     all_trees = set(tr.tree for tr in ts(generator.gamma, k, goal_typ, 0))
     if all_trees:
-        check_successors_acc(tester, generator, k, goal_typ, skeleton, skeleton_smart, all_trees)
+        check_successors_acc(tester, generator, k, goal_typ, sk, sk_smart, all_trees)
 
 
 def check_successors_acc(tester, generator, k, goal_typ, parent_skeleton, parent_skeleton_smart, all_trees):
 
     def print_expansion(ps, ss, start_time):
         delta_time = time.time() - start_time
-        print('  ', '%.2f' % delta_time, ps, ' --> ', len(ss), ':', ', '.join((str(s) for s in ss)))
+        log('  ', '%.2f' % delta_time, ps, ' --> ', len(ss), ':', ', '.join((str(s) for s in ss)))
 
     t = time.time()
     skeletons = parent_skeleton.successors(generator, k, goal_typ)
@@ -145,8 +155,8 @@ def check_successors_acc(tester, generator, k, goal_typ, parent_skeleton, parent
     sk2sk_smart = {}
 
     for (sk, sk_smart) in zip(skeletons, skeletons_smart):
-        print('    ', sk)
-        print('    ', sk_smart)
+        log('    ', sk)
+        log('    ', sk_smart)
         sk2sk_smart[sk] = sk_smart
 
     for tree in all_trees:
@@ -193,9 +203,10 @@ def check_generators_have_same_outputs(generators, goal, max_k):
 
 
 if __name__ == "__main__":
-    # unittest.main()
-
     if True:
+        unittest.main()
+    else:
+        IS_LOG_PRINTING = True
         check_skeletons(TestGen())
 
     if not True:
