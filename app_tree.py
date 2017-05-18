@@ -167,9 +167,6 @@ class App(AppTree):
         return self.fun.size() + self.arg.size()
 
     def replace_unfinished_leafs_raw(self, new_subtrees):
-        # možnost 1) zunifikovat minulej typ s tim novym a něco jak zeman
-        # option (2) vracet substituci jak mazák
-        # Any other option ?
         fun_new1, fun_sub = self.fun.replace_unfinished_leafs_raw(new_subtrees)
         arg_new1 = self.arg.apply_sub(fun_sub)
         arg_new2, arg_sub = arg_new1.replace_unfinished_leafs_raw(new_subtrees)
