@@ -172,15 +172,27 @@ class Generator:
         return ret[0]
 
     def gen_one_uf_smart(self, uf_tree, k):
+
         uf_leafs = uf_tree.get_unfinished_leafs()
-        if len(uf_leafs) > 0:
-            hax_typ = TypTerm.make_internal_tuple((uf_leaf.typ for uf_leaf in uf_leafs))
-            hax_tree = self.gen_one(k, hax_typ)
+
+        num_uf_leafs = len(uf_leafs)
+        num_leafs = uf_tree.size()
+
+        if num_leafs + num_uf_leafs > k:
+            return None
+
+        if num_uf_leafs > 0:
+            hax_typ = TypTerm.make_internal_tuple([uf_leaf.typ for uf_leaf in uf_leafs])
+            k_hax_pair = k - num_leafs + num_uf_leafs-1
+            hax_tree = self.gen_one(k_hax_pair, hax_typ)
             hax_subtrees = split_internal_tuple(hax_tree)
             assert len(uf_leafs) == len(hax_subtrees)
-            return uf_tree.replace_unfinished_leafs(hax_subtrees)
-        else:
+            tree, sigma = uf_tree.replace_unfinished_leafs(hax_subtrees)
+            return tree
+        elif num_leafs == k:
             return uf_tree
+        else:
+            return None
 
     def gen_one_uf(self, uf_tree, k, typ):
         ret = self.gen_one_random_uf(uf_tree, k, typ, 0)

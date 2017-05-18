@@ -170,8 +170,8 @@ class App(AppTree):
         # možnost 1) zunifikovat minulej typ s tim novym a něco jak zeman
         # option (2) vracet substituci jak mazák
         # Any other option ?
-        fun_new, fun_sub = self.fun.replace_unfinished_leafs(new_subtrees)
-        arg_new, arg_sub = self.arg.replace_unfinished_leafs(new_subtrees)
+        fun_new, fun_sub = self.fun.replace_unfinished_leafs_raw(new_subtrees)
+        arg_new, arg_sub = self.arg.replace_unfinished_leafs_raw(new_subtrees)
         sigma = sub.dot(arg_sub, fun_sub)
         return App(fun_new, arg_new, sigma(self.typ)), sigma
 
@@ -312,7 +312,7 @@ UNFINISHED_APP = App(UnfinishedLeaf(), UnfinishedLeaf())
 def split_internal_pair(tree):
     if isinstance(tree, App) and isinstance(tree.fun, App) and isinstance(tree.fun.fun, Leaf):
         if tree.fun.fun.sym == INTERNAL_PAIR_CONSTRUCTOR_SYM:
-            return tree.arg, tree.fun.arg
+            return tree.fun.arg, tree.arg
     return None, None
 
 
