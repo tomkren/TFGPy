@@ -170,10 +170,12 @@ class App(AppTree):
         # možnost 1) zunifikovat minulej typ s tim novym a něco jak zeman
         # option (2) vracet substituci jak mazák
         # Any other option ?
-        fun_new, fun_sub = self.fun.replace_unfinished_leafs_raw(new_subtrees)
-        arg_new, arg_sub = self.arg.replace_unfinished_leafs_raw(new_subtrees)
+        fun_new1, fun_sub = self.fun.replace_unfinished_leafs_raw(new_subtrees)
+        arg_new1 = self.arg.apply_sub(fun_sub)
+        arg_new2, arg_sub = arg_new1.replace_unfinished_leafs_raw(new_subtrees)
+        fun_new2 = fun_new1.apply_sub(arg_sub)
         sigma = sub.dot(arg_sub, fun_sub)
-        return App(fun_new, arg_new, sigma(self.typ)), sigma
+        return App(fun_new2, arg_new2, sigma(self.typ)), sigma
 
     def is_skeleton_of(self, tree):
         return (isinstance(tree, UnfinishedLeaf)
@@ -300,7 +302,8 @@ class UnfinishedLeaf(Leaf):
         subtree = new_subtrees.pop(0)
         mu = sub.mgu(self.typ, subtree.typ)
         assert not mu.is_failed()
-        return subtree, mu
+        new_subtree = subtree.apply_sub(mu)
+        return new_subtree, mu
 
     def is_skeleton_of(self, tree):
         return True

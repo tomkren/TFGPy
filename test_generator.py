@@ -155,10 +155,8 @@ def check_successors_acc(tester, generator, k, goal_typ, parent_skeleton, parent
         log('   eg:', str(tree_smart))
 
         tester.assertTrue(tree_smart.is_well_typed(generator.gamma))
-        pass
 
-
-    if not skeletons:
+    else:
         tester.assertEqual(len(all_trees), 1)
         return
 
