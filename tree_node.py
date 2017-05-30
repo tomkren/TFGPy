@@ -28,3 +28,11 @@ class ChooseKTNode(TNode):
 
     def is_finished(self):
         return self.uf_tree.is_finished()
+
+
+class StackNode(TNode):
+    def __init__(self, stack):
+        self.stack = stack
+
+    def __str__(self):
+        return "StackNode<%s>" % (self.stack)

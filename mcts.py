@@ -144,5 +144,3 @@ def mct_search(node, num_steps, fitness, finish, successors, expand_visits=8, tr
         if tree_stats is not None:
             tree_stats.update(tree.uf_tree, score)
         i += 1
-
-    return tstats

@@ -1,5 +1,4 @@
 from app_tree import AppTree, Leaf
-from monte_carlo import tstats
 
 #
 #   Statistics on subtrees
@@ -58,7 +57,7 @@ class TreeStats:
 
     def pretty_str(self):
         l = []
-        for typ, size2stats in tstats.typ2size2stats.items():
+        for typ, size2stats in self.typ2size2stats.items():
             l.append('=' * 10 + str(typ) + '=' * 10)
             for k, stats in sorted(size2stats.items()):
                 t, rs = max(stats.by_tree.items(), key=(
