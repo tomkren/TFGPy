@@ -18,8 +18,7 @@ def nested_mc_search(root_tree, max_level, fitness, finish, is_finished, success
     def nested_mc_search_raw(level, tree):
         # if the input tree is already finished, evaluate it
         if level == 0 or is_finished(tree):
-            if tree.uf_tree.typ is None:
-                tree = finish(tree)
+            tree = finish(tree)
             tree.score = fitness(tree)
             return tree
 

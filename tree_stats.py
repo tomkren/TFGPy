@@ -4,6 +4,7 @@ from app_tree import AppTree, Leaf
 #   Statistics on subtrees
 #       - to be used for heuristics during search / smart playouts
 #
+from tree_node import UFTNode
 
 
 class RunningStat:
@@ -41,7 +42,10 @@ class TreeStats:
     def __init__(self):
         self.typ2size2stats = {}
 
-    def update(self, root, score):
+    def update(self, node, score):
+        if not isinstance(node, UFTNode):
+            return
+        root = node.uf_tree
         assert isinstance(root, AppTree)
 
         def update_one(tree):

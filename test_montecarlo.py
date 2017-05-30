@@ -84,35 +84,39 @@ def regression_domain_koza_poly_stack():
 
         return [stack + [symbol] for symbol in all_symbols]
 
-    def fitness(stack, target_f=koza_poly, num_samples=1):
-        assert count_missing(stack)[0] == 0
+    def eval_stack(stack, val):
+        s = copy.copy(stack)
+        v = []
 
-        def fun(val):
-            s = copy.copy(stack)
-            v = []
-
-            while len(s) > 1 or len(v) > 0:
-                print(s, v)
-                symbol = s.pop()
-                if symbol in symbols:
-                    arity, fn = symbols[symbol]
-                    if arity == 0 and symbol == 'x':
-                        v.append(val)
-                    else:
-                        args = reversed(v[-arity:])
-                        v[-arity:] = []
-                        s.append(fn(*args))
+        while len(s):
+            #print(s, v)
+            symbol = s.pop()
+            if symbol in symbols:
+                arity, fn = symbols[symbol]
+                if arity == 0 and symbol == 'x':
+                    v.append(val)
                 else:
-                    v.append(symbol)
+                    args = reversed(v[-arity:])
+                    v[-arity:] = []
+                    v.append(fn(*args))
+            else:
+                v.append(symbol)
 
-            assert len(s) == 1 and not v
-            print(s, v)
-            return s[0]
+        assert len(v) == 1 and not s
+        #print(s, v)
+        return v[0]
+
+    def fitness(stack, target_f=koza_poly, num_samples=20):
+        assert count_missing(stack)[0] == 0
 
         s = repr(stack)
         samples = [-1 + 0.1 * i for i in range(num_samples)]
         try:
-            error = sum(abs(fun(val) - target_f(val)) for val in samples)
+            error = 0
+            for val in samples:
+                fv = eval_stack(stack, val)
+                tv = target_f(val)
+                error += abs(fv - tv)
         except OverflowError:
             return 0.0
         score = 1 / (1 + error)
@@ -120,13 +124,13 @@ def regression_domain_koza_poly_stack():
 
         return score
 
-    return finish, is_finished, successors, fitness
+    return finish, is_finished, successors, fitness, eval_stack, (lambda: len(cache_d))
 
 
-def make_env_stack():
-    raw_finish, raw_is_finished, raw_successors, raw_fitness = regression_domain_koza_poly_stack()
+def make_env_stack(limit=5):
+    raw_finish, raw_is_finished, raw_successors, raw_fitness, raw_eval, count_evals = regression_domain_koza_poly_stack()
     env = Environment()
-
+    env.count_evals = count_evals
     #
     #  now define tree-searching functions in this env
     #
@@ -150,18 +154,21 @@ def make_env_stack():
     @utils.pp_function('successors()')
     def successors(node):
         assert isinstance(node, StackNode)
-        return StackNode(raw_successors(node.stack))
+        return [StackNode(stack) for stack in raw_successors(node.stack, limit)]
 
     @utils.pp_function('advance()')
     def advance(node, finished_node):
         assert isinstance(node, StackNode)
         assert isinstance(finished_node, StackNode)
-        assert is_finished(finished_node.stack)
+        assert is_finished(finished_node)
 
         f_stack, stack = finished_node.stack, node.stack
 
-        assert len(f_stack) > len(stack)
         assert stack == f_stack[:len(stack)]
+        if len(f_stack) <= len(stack):
+            assert f_stack == stack
+            return None
+
         stack = copy.copy(stack)
         stack.append(f_stack[len(stack)])
         return StackNode(stack)
@@ -247,7 +254,9 @@ def make_env():
     @utils.pp_function('finish()')
     def finish(node):
         assert isinstance(node, UFTNode)
-        assert node.uf_tree.typ is None
+        if node.uf_tree.typ is not None:
+            assert node.uf_tree.is_finished()
+            return node.uf_tree
 
         finished_tree = gen.gen_one_uf(node.uf_tree, node.k, goal)
         assert finished_tree.typ is not None
@@ -299,6 +308,21 @@ class TestKozaRegressionDomain(unittest.TestCase):
         self.assertTrue(True)
 
 
+class TestStack(unittest.TestCase):
+    def test(self):
+        finish, is_finished, successors, fitness, eval_stack, count_evals = regression_domain_koza_poly_stack()
+
+        self.assertEqual(eval_stack(['x'], 3), 3)
+        self.assertEqual(eval_stack(['plus', 6, 'x'], 3), 6 + 3)
+        self.assertEqual(eval_stack(['times', 6, 'x'], 3), 6 * 3)
+        self.assertEqual(eval_stack(['rdiv', 'plus', 5, 'x', 2], 3), (5 + 3) / 2)
+
+        a = ['rdiv', 'plus', 5, 'x', 2]
+        self.assertEqual(finish(a), a)
+        b = ['rdiv', 'plus', 2]
+        self.assertEqual(finish(b), b + ['x', 'x'])
+
+
 class TestMCRegression(unittest.TestCase):
     def test_nmcs(self):
         env = make_env()
@@ -309,7 +333,7 @@ class TestMCRegression(unittest.TestCase):
                          is_finished=env.is_finished,
                          successors=env.successors,
                          advance=env.advance)
-
+        # the test just checks that nothing dies with exception
         self.assertTrue(True)
 
     def test_mcts(self):
@@ -320,19 +344,41 @@ class TestMCRegression(unittest.TestCase):
                    finish=env.finish,
                    is_finished=env.is_finished,
                    successors=env.successors)
+        # the test just checks that nothing dies with exception
+        self.assertTrue(True)
+
+
+class TestMCRegressionStack(unittest.TestCase):
+    def test_nmcs(self):
+        env = make_env_stack(5)
+        nested_mc_search(StackNode([]),
+                         max_level=1,
+                         fitness=env.fitness,
+                         finish=env.finish,
+                         is_finished=env.is_finished,
+                         successors=env.successors,
+                         advance=env.advance)
+        # the test just checks that nothing dies with exception
+        self.assertTrue(True)
+
+    def test_mcts(self):
+        env = make_env_stack(5)
+        root = MCTNode(StackNode([]))
+        mct_search(root, expand_visits=1, num_steps=50,
+                   fitness=env.fitness,
+                   finish=env.finish,
+                   is_finished=env.is_finished,
+                   successors=env.successors)
+        # the test just checks that nothing dies with exception
         self.assertTrue(True)
 
 
 if __name__ == "__main__":
-    unittest.main()
+    if True:
+        unittest.main()
+    else:
+        finish, is_finished, successors, fitness, eval_stack, count_evals = regression_domain_koza_poly_stack()
 
-    if False:
-        finish, is_finished, successors, fitness = regression_domain_koza_poly_stack()
+        print(eval_stack(['x'], 2))
 
-        fitness(['times', 'plus', 4, 'x', 2])
-        fitness(['rdiv', 'plus', 5, 'x', 2])
-
-        print(finish(['rdiv', 'plus', 5, 'x', 2]))
-        print(finish(['rdiv', 'plus', 2]))
-
-        print(successors(['times', 'plus', 4, 'x'], 5))
+        # print(successors(['times', 'plus', 4, 'x'], 5))
