@@ -285,6 +285,20 @@ def make_env():
     return env
 
 
+class TestKozaRegressionDomain(unittest.TestCase):
+    def test_domain(self):
+        goal, gamma, raw_fitness, count_evals = regression_domain_koza_poly()
+        gen = generator.Generator(gamma)
+        random.seed(5)
+        indiv = gen.gen_one(20, goal)
+        istr = indiv.eval_str()
+        ifit = raw_fitness(indiv)
+        if False:
+            print(istr)
+            print(ifit)
+        self.assertTrue(True)
+
+
 class TestMCRegression(unittest.TestCase):
     def test_nmcs(self):
         env = make_env()

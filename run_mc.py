@@ -1,10 +1,11 @@
 import random
 import time
 
+import generator
 from app_tree import UnfinishedLeaf
 from mcts import MCTNode, mct_search
 from nmcs import nested_mc_search
-from test_montecarlo import make_env, make_env_stack
+from test_montecarlo import make_env, regression_domain_koza_poly
 from tree_node import ChooseKTNode
 from tree_stats import TreeStats
 from utils import experiment_eval
@@ -12,13 +13,6 @@ from utils import experiment_eval
 if __name__ == "__main__":
     # make_env = make_env
     # make_env = make_env_stack
-
-    if False:
-        env = make_env()
-        random.seed(5)
-        indiv = env.gen.gen_one(30, env.goal)
-        print(indiv.eval_str())
-        print(env.fitness(indiv))
 
     if False:
         # Nested MC Search
@@ -34,9 +28,10 @@ if __name__ == "__main__":
                                      advance=env.advance)
             return env.fitness(indiv), env.count_evals() - evals_before, time.time() - time_before
 
+
         experiment_eval(one_iteration, repeat=1, processes=1, make_env=make_env)
 
-    if not False:
+    if False:
         # MCTS
         def one_iteration(env):
             evals_before = env.count_evals()
@@ -48,6 +43,7 @@ if __name__ == "__main__":
                        is_finished=env.is_finished,
                        successors=env.successors)
             return root.best_score, env.count_evals() - evals_before, time.time() - time_before
+
 
         experiment_eval(one_iteration, repeat=1, processes=1, make_env=make_env)
 
