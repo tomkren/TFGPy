@@ -132,22 +132,31 @@ def check_successors(tester, generator, k, goal_typ):
 
 def check_successors_acc(tester, generator, k, goal_typ, parent_skeleton, parent_skeleton_smart, all_trees):
 
-    def print_expansion(ps, ss, start_time):
+    def log_expansion(ps, ss, start_time):
         delta_time = time.time() - start_time
-        log('  ', '%.2f' % delta_time, ps, ' --> ', len(ss), ':', ', '.join((str(s) for s in ss)))
+        ss_str = ': ' + ', '.join((str(s) for s in ss)) if ss else ''
+        log('  dt=', '%.2f' % delta_time, ps, ' --> ', len(ss), ss_str)
 
     t = time.time()
     skeletons = parent_skeleton.successors(generator, k, goal_typ)
-    print_expansion(parent_skeleton, skeletons, t)
+    log_expansion(parent_skeleton, skeletons, t)
 
     t = time.time()
     skeletons_smart = parent_skeleton_smart.successors_smart(generator, k)
-    print_expansion(parent_skeleton_smart, skeletons_smart, t)
+    log_expansion(parent_skeleton_smart, skeletons_smart, t)
 
     tester.assertEqual(len(skeletons), len(skeletons_smart))
     tester.assertEqual([str(s) for s in skeletons], [str(s) for s in skeletons_smart])
+    log()
 
-    if not skeletons:
+    if len(skeletons_smart) > 0:
+
+        tree_smart = generator.gen_one_uf_smart(parent_skeleton_smart, k)
+        log('   eg:', str(tree_smart))
+
+        tester.assertTrue(tree_smart.is_well_typed(generator.gamma))
+
+    else:
         tester.assertEqual(len(all_trees), 1)
         return
 
@@ -155,8 +164,8 @@ def check_successors_acc(tester, generator, k, goal_typ, parent_skeleton, parent
     sk2sk_smart = {}
 
     for (sk, sk_smart) in zip(skeletons, skeletons_smart):
-        log('    ', sk)
-        log('    ', sk_smart)
+        # log('    ', sk)
+        # log('    ', sk_smart)
         sk2sk_smart[sk] = sk_smart
 
     for tree in all_trees:
@@ -203,7 +212,7 @@ def check_generators_have_same_outputs(generators, goal, max_k):
 
 
 if __name__ == "__main__":
-    if True:
+    if not True:
         unittest.main()
     else:
         IS_LOG_PRINTING = True
