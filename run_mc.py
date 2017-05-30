@@ -21,13 +21,13 @@ if __name__ == "__main__":
         print(indiv.eval_str())
         print(env.fitness(indiv))
 
-    if False:
+    if not False:
         # Nested MC Search
         def one_iteration(env):
             evals_before = env.count_evals()
             time_before = time.time()
             indiv = nested_mc_search(ChooseKTNode(UnfinishedLeaf(), 20),
-                                     max_level=3,
+                                     max_level=1,
                                      fitness=env.t_fitness,
                                      finish=env.t_finish,
                                      successors=env.t_successors,
@@ -35,7 +35,7 @@ if __name__ == "__main__":
             return env.fitness(indiv.uf_tree), env.count_evals() - evals_before, time.time() - time_before
 
 
-        experiment_eval(one_iteration, repeat=2, processes=2, make_env=make_env)
+        experiment_eval(one_iteration, repeat=1, processes=1, make_env=make_env)
 
     if False:
         # MCTS
@@ -43,15 +43,15 @@ if __name__ == "__main__":
             evals_before = env.count_evals()
             time_before = time.time()
             root = MCTNode(ChooseKTNode(UnfinishedLeaf(), 20))
-            mct_search(root, expand_visits=8, num_steps=10000,
+            mct_search(root, expand_visits=8, num_steps=100,
                        fitness=env.t_fitness,
                        finish=env.t_finish,
                        successors=env.t_successors)
             return root.best_score, env.count_evals() - evals_before, time.time() - time_before
 
-        experiment_eval(one_iteration, repeat=10, processes=2, make_env=make_env)
+        experiment_eval(one_iteration, repeat=1, processes=1, make_env=make_env)
 
-    if not False:
+    if False:
         # MCTS - one run
         env = make_env()
         # tracer_deco.enable_tracer = True

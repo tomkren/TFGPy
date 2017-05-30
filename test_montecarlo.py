@@ -256,6 +256,7 @@ def make_env():
     env.t_finish = ffinish
     env.t_successors = fsuccessors
     env.t_advance = fadvance
+    env.count_evals = count_evals
 
     return env
 
