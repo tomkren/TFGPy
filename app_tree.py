@@ -76,7 +76,7 @@ class AppTree:
 
     def count_finished_nodes(self):
         counts = self.count_nodes()
-        return counts[App] + counts[Leaf] - counts[UnfinishedLeaf]
+        return counts.get(App, 0) + counts.get(Leaf, 0) - counts.get(UnfinishedLeaf, 0)
 
     def count_nodes(self):
         if self.counts is None:
