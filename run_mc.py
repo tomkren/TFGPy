@@ -18,33 +18,35 @@ if __name__ == "__main__":
         random.seed(5)
         indiv = env.gen.gen_one(30, env.goal)
         print(indiv.eval_str())
-        print(env.t_fitness(indiv))
+        print(env.fitness(indiv))
 
-    if not False:
+    if False:
         # Nested MC Search
         def one_iteration(env):
             evals_before = env.count_evals()
             time_before = time.time()
             indiv = nested_mc_search(ChooseKTNode(UnfinishedLeaf(), 20),
                                      max_level=1,
-                                     fitness=env.t_fitness,
-                                     finish=env.t_finish,
-                                     successors=env.t_successors,
-                                     advance=env.t_advance)
-            return env.t_fitness(indiv), env.count_evals() - evals_before, time.time() - time_before
+                                     fitness=env.fitness,
+                                     finish=env.finish,
+                                     is_finished=env.is_finished,
+                                     successors=env.successors,
+                                     advance=env.advance)
+            return env.fitness(indiv), env.count_evals() - evals_before, time.time() - time_before
 
         experiment_eval(one_iteration, repeat=1, processes=1, make_env=make_env)
 
-    if False:
+    if not False:
         # MCTS
         def one_iteration(env):
             evals_before = env.count_evals()
             time_before = time.time()
             root = MCTNode(ChooseKTNode(UnfinishedLeaf(), 20))
             mct_search(root, expand_visits=8, num_steps=100,
-                       fitness=env.t_fitness,
-                       finish=env.t_finish,
-                       successors=env.t_successors)
+                       fitness=env.fitness,
+                       finish=env.finish,
+                       is_finished=env.is_finished,
+                       successors=env.successors)
             return root.best_score, env.count_evals() - evals_before, time.time() - time_before
 
         experiment_eval(one_iteration, repeat=1, processes=1, make_env=make_env)
@@ -59,9 +61,10 @@ if __name__ == "__main__":
         root = MCTNode(ChooseKTNode(UnfinishedLeaf(), 20))
         tree_stats = TreeStats()
         mct_search(root, expand_visits=2, num_steps=20,
-                   fitness=env.t_fitness,
-                   finish=env.t_finish,
-                   successors=env.t_successors,
+                   fitness=env.fitness,
+                   finish=env.finish,
+                   is_finished=env.is_finished,
+                   successors=env.successors,
                    tree_stats=tree_stats)
         print('=' * 20)
         print(root.pretty_str())

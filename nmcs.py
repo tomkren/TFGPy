@@ -13,11 +13,11 @@ from app_tree import App, UnfinishedLeaf, Leaf, UNFINISHED_APP
 
 
 @tracer_deco.tracer_deco(force_enable=True)
-def nested_mc_search(root_tree, max_level, fitness, finish, successors, advance):
+def nested_mc_search(root_tree, max_level, fitness, finish, is_finished, successors, advance):
     # @tracer_deco(print_from_arg=0)
     def nested_mc_search_raw(level, tree):
         # if the input tree is already finished, evaluate it
-        if level == 0 or tree.is_finished():
+        if level == 0 or is_finished(tree):
             if tree.uf_tree.typ is None:
                 tree = finish(tree)
             tree.score = fitness(tree)
@@ -34,6 +34,7 @@ def nested_mc_search(root_tree, max_level, fitness, finish, successors, advance)
 
             # the successors must be nonempty, so:
             assert best_finished_tree is not None
+            assert is_finished(best_finished_tree)
             tree = advance(tree, best_finished_tree)
 
         return best_finished_tree
@@ -47,7 +48,6 @@ def nested_mc_search(root_tree, max_level, fitness, finish, successors, advance)
 def check_skeleton_advancer(f):
     @wraps(f)
     def g(old_skeleton, finished_tree):
-        assert finished_tree.is_finished()
         assert old_skeleton.is_skeleton_of(finished_tree)
         new_skeleton = f(old_skeleton, finished_tree)
         if new_skeleton is not None:

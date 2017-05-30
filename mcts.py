@@ -32,7 +32,7 @@ class MCTNode:
     def __str__(self):
         return "MCTNode(%s)" % (self.tree)
 
-    def update_best(self, new, score):
+    def update_best(self, new, score, is_finished):
         self.score_sum += score
         self.score_num += 1
         assert self.score_num == self.visits
@@ -40,7 +40,7 @@ class MCTNode:
             self.best = new
             self.best_score = score
 
-        if (self.tree.is_finished()
+        if (is_finished(self.tree)
             or (self.children is not None
                 and all(c.finished_flag for c in self.children))):
             # this prevents further searching through this (now finished) node
@@ -65,8 +65,8 @@ class MCTNode:
         return exploatation + exploration
 
     # @tracer_deco.tracer_deco(log_ret=True, ret_pp=lambda l: ", ".join(map(str, l)))
-    def expand(self, successors):
-        if not self.tree.is_finished():
+    def expand(self, successors, is_finished):
+        if not is_finished(self.tree):
             self.children = [MCTNode(child_tree) for child_tree in successors(self.tree)]
 
         return self.children
@@ -83,7 +83,7 @@ class MCTNode:
 
 
 @tracer_deco.tracer_deco()
-def mct_descend(node, expand_visits, successors, sample_by_urgency=False):
+def mct_descend(node, expand_visits, successors, is_finished, sample_by_urgency=False):
     node.visits += 1
     nodes = [node]
 
@@ -107,7 +107,7 @@ def mct_descend(node, expand_visits, successors, sample_by_urgency=False):
         node.visits += 1
         if node.children is None and node.visits >= expand_visits and not expanded:
             expanded = True
-            node.expand(successors)
+            node.expand(successors, is_finished)
 
     return nodes
 
@@ -119,28 +119,28 @@ def mct_playout(node, finish, fitness):
     return finished_tree, fitness(finished_tree)
 
 
-def mct_update(nodes, tree, score):
+def mct_update(nodes, tree, score, is_finished):
     # the reverse order is necessary, since we
     # need the children to be updated before we update
     # parent (e.g. for correct node.is_finished update)
     for node in reversed(nodes):
-        node.update_best(tree, score)
+        node.update_best(tree, score, is_finished)
 
 
 @tracer_deco.tracer_deco(force_enable=True)
-def mct_search(node, num_steps, fitness, finish, successors, expand_visits=8, tree_stats=None):
+def mct_search(node, num_steps, fitness, finish, is_finished, successors, expand_visits=8, tree_stats=None):
     if node.children is None:
-        node.expand(successors)
+        node.expand(successors, is_finished)
 
     i = 0
     while i < num_steps and not node.finished_flag:
-        nodes = mct_descend(node, expand_visits, successors)
+        nodes = mct_descend(node, expand_visits, successors, is_finished)
         # no need to do playout if the subtree is
         # fully expanded and
         if nodes[-1].finished_flag:
             continue
         tree, score = mct_playout(nodes[-1], finish, fitness)
-        mct_update(nodes, tree, score)
+        mct_update(nodes, tree, score, is_finished)
         if tree_stats is not None:
             tree_stats.update(tree.uf_tree, score)
         i += 1
