@@ -9,17 +9,16 @@ from tree_node import ChooseKTNode
 from tree_stats import TreeStats
 from utils import experiment_eval
 
-
 if __name__ == "__main__":
-    make_env = make_env
-    #make_env = make_env_stack
+    # make_env = make_env
+    # make_env = make_env_stack
 
     if False:
         env = make_env()
         random.seed(5)
         indiv = env.gen.gen_one(30, env.goal)
         print(indiv.eval_str())
-        print(env.fitness(indiv))
+        print(env.t_fitness(indiv))
 
     if not False:
         # Nested MC Search
@@ -32,8 +31,7 @@ if __name__ == "__main__":
                                      finish=env.t_finish,
                                      successors=env.t_successors,
                                      advance=env.t_advance)
-            return env.fitness(indiv.uf_tree), env.count_evals() - evals_before, time.time() - time_before
-
+            return env.t_fitness(indiv), env.count_evals() - evals_before, time.time() - time_before
 
         experiment_eval(one_iteration, repeat=1, processes=1, make_env=make_env)
 
@@ -61,10 +59,10 @@ if __name__ == "__main__":
         root = MCTNode(ChooseKTNode(UnfinishedLeaf(), 20))
         tree_stats = TreeStats()
         mct_search(root, expand_visits=2, num_steps=20,
-                            fitness=env.t_fitness,
-                            finish=env.t_finish,
-                            successors=env.t_successors,
-                            tree_stats=tree_stats)
+                   fitness=env.t_fitness,
+                   finish=env.t_finish,
+                   successors=env.t_successors,
+                   tree_stats=tree_stats)
         print('=' * 20)
         print(root.pretty_str())
         print(tree_stats.pretty_str())
