@@ -104,22 +104,30 @@ def experiment_eval(one_iteration, make_env, repeat=10, processes=1):
 
     pool = multiprocessing.Pool(processes=processes, initializer=make_worker_env)
 
+    imap = map
+    if processes > 1 and repeat > 1:
+        imap =pool.imap_unordered
+    else:
+        make_worker_env()
+
     scores = []
     times = []
     total_num_evals = 0
     try:
-        for score, num_evals, time_spent in pool.imap_unordered(worker_run_with_env, (one_iteration for _ in range(repeat))):
+        for score, num_evals, time_spent in imap(worker_run_with_env, (one_iteration for _ in range(repeat))):
             print('.', end='', flush=True)
             scores.append(score)
             times.append(time_spent)
             total_num_evals += num_evals
     finally:
-        print()
-        print("score\t", end='')
-        print_it_stats(scores)
-        print("time\t", end='')
-        print_it_stats(times, flush=True)
-        print("%d total evals" % total_num_evals)
+        if scores:
+            print()
+            print("score\t", end='')
+            print_it_stats(scores)
+        if times:
+            print("time\t", end='')
+            print_it_stats(times, flush=True)
+            print("%d total evals" % total_num_evals)
 
     return scores
 
