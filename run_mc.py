@@ -9,15 +9,15 @@ from tree_stats import TreeStats
 from utils import experiment_eval
 
 if __name__ == "__main__":
-    #make_env = make_env
-    make_env = make_env_stack
+    # make_env = make_env
+    make_env = lambda: make_env_stack(20)
 
     if False:
         # Nested MC Search
         def one_iteration(env):
             evals_before = env.count_evals()
             time_before = time.time()
-            #root = ChooseKTNode(UnfinishedLeaf(), 5)
+            # root = ChooseKTNode(UnfinishedLeaf(), 5)
             root = StackNode([])
             indiv = nested_mc_search(root,
                                      max_level=1,
@@ -36,7 +36,7 @@ if __name__ == "__main__":
         def one_iteration(env):
             evals_before = env.count_evals()
             time_before = time.time()
-            #root = MCTNode(ChooseKTNode(UnfinishedLeaf(), 5))
+            # root = MCTNode(ChooseKTNode(UnfinishedLeaf(), 5))
             root = MCTNode(StackNode([]))
             mct_search(root, expand_visits=8, num_steps=100,
                        fitness=env.fitness,
@@ -53,11 +53,11 @@ if __name__ == "__main__":
         env = make_env()
         # tracer_deco.enable_tracer = True
         # random.seed(5)
-
-        #root = MCTNode(ChooseKTNode(UnfinishedLeaf(), 5))
-        root = MCTNode(StackNode([]))
         tree_stats = TreeStats()
-        mct_search(root, expand_visits=2, num_steps=100,
+
+        # root = MCTNode(ChooseKTNode(UnfinishedLeaf(), 5))
+        root = MCTNode(StackNode([]))
+        mct_search(root, expand_visits=8, num_steps=4000,
                    fitness=env.fitness,
                    finish=env.finish,
                    is_finished=env.is_finished,

@@ -59,15 +59,28 @@ def regression_domain_koza_poly_stack():
                 terminals += 1
         return missing, terminals, non_terminals
 
-    def finish(stack):
-        nonfinished = count_missing(stack)[0]
-        assert nonfinished >= 0
-        if not nonfinished:
+    def finish(stack, limit):
+        missing, terminals, non_terminals = count_missing(stack)
+        assert missing >= 0
+        if not missing:
             return stack
         stack = copy.copy(stack)
 
-        for _ in range(nonfinished):
-            stack.append(random.choice(terminal_symbols))
+        while missing > 0:
+            if terminals + non_terminals + missing >= limit:
+                ns = random.choice(terminal_symbols)
+            else:
+                ns = random.choice(all_symbols)
+
+            arity, _ = symbols[ns]
+            if not arity:
+                missing -= 1
+                terminals += 1
+            else:
+                missing = missing - 1 + arity
+                non_terminals += 1
+
+            stack.append(ns)
 
         return stack
 
@@ -149,7 +162,7 @@ def make_env_stack(limit=5):
     def finish(node):
         assert isinstance(node, StackNode)
 
-        return StackNode(raw_finish(node.stack))
+        return StackNode(raw_finish(node.stack, limit))
 
     @utils.pp_function('successors()')
     def successors(node):
@@ -318,9 +331,9 @@ class TestStack(unittest.TestCase):
         self.assertEqual(eval_stack(['rdiv', 'plus', 5, 'x', 2], 3), (5 + 3) / 2)
 
         a = ['rdiv', 'plus', 5, 'x', 2]
-        self.assertEqual(finish(a), a)
+        self.assertEqual(finish(a, 5), a)
         b = ['rdiv', 'plus', 2]
-        self.assertEqual(finish(b), b + ['x', 'x'])
+        self.assertEqual(finish(b, 3), b + ['x', 'x'])
 
 
 class TestMCRegression(unittest.TestCase):
