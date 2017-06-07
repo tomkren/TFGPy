@@ -55,7 +55,7 @@ def regression_domain_koza_poly():
         samples = [-1 + 0.1 * i for i in range(num_samples)]
         try:
             error = sum(abs(fun(val) - target_f(val)) for val in samples)
-        except OverflowError:
+        except (OverflowError, ValueError):
             return 0.0
         score = 1 / (1 + error)
         cache.update(s, score)
