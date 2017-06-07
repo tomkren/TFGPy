@@ -91,11 +91,4 @@ class TestMCRegressionStack(unittest.TestCase):
 
 
 if __name__ == "__main__":
-    if True:
-        unittest.main()
-    else:
-        finish, is_finished, successors, fitness, eval_stack, count_evals = regression_domain_koza_poly_stack()
-
-        print(eval_stack(['x'], 2))
-
-        # print(successors(['times', 'plus', 4, 'x'], 5))
+    unittest.main()

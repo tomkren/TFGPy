@@ -3,8 +3,8 @@ import math
 import random
 
 import utils
-from fitness_cache import FitnessCache
 from domain_koza_apptree import Environment
+from fitness_cache import FitnessCache
 from tree_node import StackNode
 
 
@@ -15,7 +15,7 @@ def regression_domain_koza_poly_stack():
     def raiserun():
         raise RuntimeError()
 
-    symbols = {
+    symbols_d = {
         'plus': (2, (lambda x, y: x + y)),
         'minus': (2, (lambda x, y: x - y)),
         'times': (2, (lambda x, y: x * y)),
@@ -27,9 +27,9 @@ def regression_domain_koza_poly_stack():
         'x': (0, raiserun),
     }
 
-    all_symbols = list(symbols.keys())
-    terminals = {k: v for k, v in symbols.items() if v[0] == 0}
-    terminal_symbols = list(terminals.keys())
+    all_symbols = list(symbols_d.keys())
+    terminals_d = {k: v for k, v in symbols_d.items() if v[0] == 0}
+    terminal_symbols = list(terminals_d.keys())
 
     cache = FitnessCache()
 
@@ -39,7 +39,7 @@ def regression_domain_koza_poly_stack():
         terminals = 0
 
         for symbol in stack:
-            arity, _ = symbols.get(symbol, (0, None))
+            arity, _ = symbols_d.get(symbol, (0, None))
             missing += arity - 1
             if arity:
                 non_terminals += 1
@@ -47,20 +47,29 @@ def regression_domain_koza_poly_stack():
                 terminals += 1
         return missing, terminals, non_terminals
 
+    def successor_symbols(stack, limit, count=None):
+        missing, terminals, non_terminals = count if count is not None else count_missing(stack)
+
+        if not missing:
+            return []
+        if terminals + non_terminals + missing >= limit:
+            return terminal_symbols
+        return all_symbols
+
     def finish(stack, limit):
         missing, terminals, non_terminals = count_missing(stack)
+
         assert missing >= 0
         if not missing:
             return stack
         stack = copy.copy(stack)
 
         while missing > 0:
-            if terminals + non_terminals + missing >= limit:
-                ns = random.choice(terminal_symbols)
-            else:
-                ns = random.choice(all_symbols)
+            ssym = successor_symbols(stack, limit, (missing, terminals, non_terminals))
+            assert ssym
+            ns = random.choice(ssym)
 
-            arity, _ = symbols[ns]
+            arity, _ = symbols_d[ns]
             if not arity:
                 missing -= 1
                 terminals += 1
@@ -77,13 +86,13 @@ def regression_domain_koza_poly_stack():
         return nonfinished == 0
 
     def successors(stack, limit):
-        missing, terminals, non_terminals = count_missing(stack)
-        if not missing:
-            return []
-        if terminals + non_terminals >= limit:
-            return [stack + [symbol] for symbol in terminal_symbols]
+        count = count_missing(stack)
+        ssym = successor_symbols(stack, limit, count)
 
-        return [stack + [symbol] for symbol in all_symbols]
+        if not ssym:
+            return []
+
+        return [stack + [s] for s in ssym]
 
     def eval_stack(stack, val):
         s = copy.copy(stack)
@@ -92,8 +101,8 @@ def regression_domain_koza_poly_stack():
         while len(s):
             # print(s, v)
             symbol = s.pop()
-            if symbol in symbols:
-                arity, fn = symbols[symbol]
+            if symbol in symbols_d:
+                arity, fn = symbols_d[symbol]
                 if arity == 0 and symbol == 'x':
                     v.append(val)
                 else:
@@ -186,3 +195,10 @@ def make_env_stack(limit=5):
     env.advance = advance
 
     return env
+
+
+if __name__ == "__main__":
+    finish, is_finished, successors, fitness, eval_stack, count_evals = regression_domain_koza_poly_stack()
+
+    print(eval_stack(['x'], 2))
+    print(successors(['times', 'plus', 4, 'x'], 5))
