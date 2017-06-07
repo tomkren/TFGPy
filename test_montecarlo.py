@@ -3,7 +3,7 @@ import unittest
 
 import generator
 from app_tree import UnfinishedLeaf
-from domain_koza_apptree import regression_domain_koza_poly, make_env
+from domain_koza_apptree import regression_domain_koza_poly, make_env_app_tree
 from domain_koza_stack import regression_domain_koza_poly_stack, make_env_stack
 from mcts import MCTNode
 from mcts import mct_search
@@ -42,7 +42,7 @@ class TestStack(unittest.TestCase):
 
 class TestMCRegression(unittest.TestCase):
     def test_nmcs(self):
-        env = make_env()
+        env = make_env_app_tree()
         nested_mc_search(ChooseKTNode(UnfinishedLeaf(), 10),
                          max_level=1,
                          fitness=env.fitness,
@@ -54,7 +54,7 @@ class TestMCRegression(unittest.TestCase):
         self.assertTrue(True)
 
     def test_mcts(self):
-        env = make_env()
+        env = make_env_app_tree()
         root = MCTNode(ChooseKTNode(UnfinishedLeaf(), 5))
         mct_search(root, expand_visits=1, num_steps=50,
                    fitness=env.fitness,

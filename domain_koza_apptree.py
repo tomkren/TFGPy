@@ -64,7 +64,7 @@ def regression_domain_koza_poly():
     return goal, gamma, fitness, (lambda: len(cache))
 
 
-def make_env():
+def make_env_app_tree():
     goal, gamma, raw_fitness, count_evals = regression_domain_koza_poly()
     gen = generator.Generator(gamma)
 

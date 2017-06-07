@@ -10,7 +10,7 @@ class FitnessCache:
             self.max_key = key
             self.max_val = value
 
-            print("%s @ %d\tmax_fitness=%.3f\t%s" % (repr(self), len(self.d), self.max_val, self.max_key))
+            print("%s @ %d\tmax_fitness=%.3f\t%s" % (repr(self), len(self.d), self.max_val, self.max_key), flush=True)
 
     def __len__(self):
         return len(self.d)

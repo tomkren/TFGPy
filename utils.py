@@ -2,6 +2,7 @@ import math
 import multiprocessing
 import random
 import sys
+import time
 
 
 def update_union(iterable, acc):
@@ -106,7 +107,7 @@ def experiment_eval(one_iteration, make_env, repeat=10, processes=1, print_dots=
 
     imap = map
     if processes > 1 and repeat > 1:
-        imap =pool.imap_unordered
+        imap = pool.imap_unordered
     else:
         make_worker_env()
 
@@ -121,10 +122,11 @@ def experiment_eval(one_iteration, make_env, repeat=10, processes=1, print_dots=
             times.append(time_spent)
             total_num_evals += num_evals
     finally:
+        time.sleep(0.1)
         if scores:
             print()
             print("score\t", end='')
-            print_it_stats(scores)
+            print_it_stats(scores, flush=True)
         if times:
             print("time\t", end='')
             print_it_stats(times, flush=True)
