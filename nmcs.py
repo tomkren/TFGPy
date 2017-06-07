@@ -54,12 +54,7 @@ def check_skeleton_advancer(f):
             # the advance_skeleton should concretize just one symbol
             old = old_skeleton.count_finished_nodes()
             new = new_skeleton.count_finished_nodes()
-            if not ( old + 1 == new):
-                # TODO XXX
-                # old = (?)     0 app + 0 leaf - 1 unfinished = -1
-                # new = (? ?)   1 app + 0 leaf - 2 unfinished = -1
-                # assert False
-                pass
+            assert old + 1 == new
 
         return new_skeleton
 
