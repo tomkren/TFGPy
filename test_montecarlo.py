@@ -1,9 +1,8 @@
+import copy
 import math
 import random
 import unittest
 from collections import OrderedDict
-
-import copy
 
 import generator
 import utils
@@ -11,9 +10,29 @@ from app_tree import UnfinishedLeaf
 from mcts import MCTNode
 from mcts import mct_search
 from nmcs import dfs_advance_skeleton, nested_mc_search
-
 from parsers import parse_typ, parse_ctx
 from tree_node import UFTNode, ChooseKTNode, StackNode
+
+
+class Cache:
+    def __init__(self):
+        self.d = {}
+        self.max_val, self.max_key = None, None
+
+    def update(self, key, value):
+        assert key not in self.d
+        self.d[key] = value
+        if self.max_key is None or self.max_val < value:
+            self.max_key = key
+            self.max_val = value
+
+            print("%s @ %d\tmax_fitness=%.3f\t%s" % (repr(self), len(self.d), self.max_val, self.max_key))
+
+    def __len__(self):
+        return len(self.d)
+
+    def __repr__(self):
+        return "Cache<%s>" % id(self)
 
 
 class Environment:
@@ -43,7 +62,7 @@ def regression_domain_koza_poly_stack():
     terminals = {k: v for k, v in symbols.items() if v[0] == 0}
     terminal_symbols = list(terminals.keys())
 
-    cache_d = {}
+    cache = Cache()
 
     def count_missing(stack):
         missing = 1
@@ -102,7 +121,7 @@ def regression_domain_koza_poly_stack():
         v = []
 
         while len(s):
-            #print(s, v)
+            # print(s, v)
             symbol = s.pop()
             if symbol in symbols:
                 arity, fn = symbols[symbol]
@@ -116,13 +135,17 @@ def regression_domain_koza_poly_stack():
                 v.append(symbol)
 
         assert len(v) == 1 and not s
-        #print(s, v)
+        # print(s, v)
         return v[0]
 
     def fitness(stack, target_f=koza_poly, num_samples=20):
         assert count_missing(stack)[0] == 0
-
         s = repr(stack)
+
+        cres = cache.d.get(s, None)
+        if cres is not None:
+            return cres
+
         samples = [-1 + 0.1 * i for i in range(num_samples)]
         try:
             error = 0
@@ -133,17 +156,18 @@ def regression_domain_koza_poly_stack():
         except OverflowError:
             return 0.0
         score = 1 / (1 + error)
-        cache_d[s] = score
 
+        cache.update(s, score)
         return score
 
-    return finish, is_finished, successors, fitness, eval_stack, (lambda: len(cache_d))
+    return finish, is_finished, successors, fitness, eval_stack, (lambda: len(cache))
 
 
 def make_env_stack(limit=5):
     raw_finish, raw_is_finished, raw_successors, raw_fitness, raw_eval, count_evals = regression_domain_koza_poly_stack()
     env = Environment()
     env.count_evals = count_evals
+
     #
     #  now define tree-searching functions in this env
     #
@@ -224,12 +248,13 @@ def regression_domain_koza_poly():
         ('x', R),
     ]))
 
-    cache_d = {}
+    cache = Cache()
 
     def fitness(individual_app_tree, target_f=koza_poly, num_samples=20):
         s = "lambda x : %s" % individual_app_tree.eval_str()
-        if s in cache_d:
-            return cache_d[s]
+        cres = cache.d.get(s, None)
+        if cres is not None:
+            return cres
 
         fun = eval(s, global_symbols)
         assert callable(fun)
@@ -239,11 +264,10 @@ def regression_domain_koza_poly():
         except OverflowError:
             return 0.0
         score = 1 / (1 + error)
-        cache_d[s] = score
-
+        cache.update(s, score)
         return score
 
-    return goal, gamma, fitness, (lambda: len(cache_d))
+    return goal, gamma, fitness, (lambda: len(cache))
 
 
 def make_env():
@@ -339,7 +363,7 @@ class TestStack(unittest.TestCase):
 class TestMCRegression(unittest.TestCase):
     def test_nmcs(self):
         env = make_env()
-        nested_mc_search(ChooseKTNode(UnfinishedLeaf(), 5),
+        nested_mc_search(ChooseKTNode(UnfinishedLeaf(), 10),
                          max_level=1,
                          fitness=env.fitness,
                          finish=env.finish,
@@ -363,7 +387,7 @@ class TestMCRegression(unittest.TestCase):
 
 class TestMCRegressionStack(unittest.TestCase):
     def test_nmcs(self):
-        env = make_env_stack(5)
+        env = make_env_stack(10)
         nested_mc_search(StackNode([]),
                          max_level=1,
                          fitness=env.fitness,
