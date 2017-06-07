@@ -13,7 +13,7 @@ from tree_node import ChooseKTNode, StackNode
 
 class TestKozaRegressionDomain(unittest.TestCase):
     def test_domain(self):
-        goal, gamma, raw_fitness, count_evals = regression_domain_koza_poly()
+        goal, gamma, raw_fitness, count_evals, cache = regression_domain_koza_poly()
         gen = generator.Generator(gamma)
         random.seed(5)
         indiv = gen.gen_one(20, goal)
@@ -27,7 +27,7 @@ class TestKozaRegressionDomain(unittest.TestCase):
 
 class TestStack(unittest.TestCase):
     def test(self):
-        finish, is_finished, successors, fitness, eval_stack, count_evals = regression_domain_koza_poly_stack()
+        finish, is_finished, successors, fitness, eval_stack, count_evals, cache = regression_domain_koza_poly_stack()
 
         self.assertEqual(eval_stack(['x'], 3), 3)
         self.assertEqual(eval_stack(['plus', 6, 'x'], 3), 6 + 3)

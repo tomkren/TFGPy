@@ -138,13 +138,14 @@ def regression_domain_koza_poly_stack():
         cache.update(s, score)
         return score
 
-    return finish, is_finished, successors, fitness, eval_stack, (lambda: len(cache))
+    return finish, is_finished, successors, fitness, eval_stack, (lambda: len(cache)), cache
 
 
 def make_env_stack(limit=5):
-    raw_finish, raw_is_finished, raw_successors, raw_fitness, raw_eval, count_evals = regression_domain_koza_poly_stack()
+    raw_finish, raw_is_finished, raw_successors, raw_fitness, raw_eval, count_evals, cache = regression_domain_koza_poly_stack()
     env = Environment()
     env.count_evals = count_evals
+    env.cache = cache
 
     #
     #  now define tree-searching functions in this env

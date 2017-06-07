@@ -9,8 +9,10 @@ class FitnessCache:
         if self.max_key is None or self.max_val < value:
             self.max_key = key
             self.max_val = value
+            self.print_self()
 
-            print("%s @ %d\tmax_fitness=%.3f\t%s" % (repr(self), len(self.d), self.max_val, self.max_key), flush=True)
+    def print_self(self, label=''):
+        print("%s @ %s %d\tmax_fitness=%.3f\t%s" % (repr(self), label, len(self.d), self.max_val, self.max_key), flush=True)
 
     def __len__(self):
         return len(self.d)

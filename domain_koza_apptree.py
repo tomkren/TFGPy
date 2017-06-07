@@ -61,14 +61,15 @@ def regression_domain_koza_poly():
         cache.update(s, score)
         return score
 
-    return goal, gamma, fitness, (lambda: len(cache))
+    return goal, gamma, fitness, (lambda: len(cache)), cache
 
 
 def make_env_app_tree():
-    goal, gamma, raw_fitness, count_evals = regression_domain_koza_poly()
+    goal, gamma, raw_fitness, count_evals, cache = regression_domain_koza_poly()
     gen = generator.Generator(gamma)
 
     env = Environment()
+    env.cache = cache
 
     #
     #  now define tree-searching functions in this env
