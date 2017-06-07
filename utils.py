@@ -90,7 +90,7 @@ def worker_run_with_env(fc):
     return fc(worker_env)
 
 
-def experiment_eval(one_iteration, make_env, repeat=10, processes=1):
+def experiment_eval(one_iteration, make_env, repeat=10, processes=1, print_dots=False):
     if processes <= 0:
         processes = multiprocessing.cpu_count()
 
@@ -115,7 +115,8 @@ def experiment_eval(one_iteration, make_env, repeat=10, processes=1):
     total_num_evals = 0
     try:
         for score, num_evals, time_spent in imap(worker_run_with_env, (one_iteration for _ in range(repeat))):
-            print('.', end='', flush=True)
+            if print_dots:
+                print('.', end='', flush=True)
             scores.append(score)
             times.append(time_spent)
             total_num_evals += num_evals
