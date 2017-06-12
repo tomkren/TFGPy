@@ -66,10 +66,12 @@ if __name__ == "__main__":
                                      finish=env.finish,
                                      is_finished=env.is_finished,
                                      successors=env.successors,
-                                     advance=env.advance)
+                                     advance=env.advance,
+                                     early_end_test=env.early_end_test)
 
             env.cache.print_self("AT END")
             return env.fitness(indiv), env.count_evals() - evals_before, time.time() - time_before
+
 
         experiment_eval(one_iteration, repeat=args.repeat, processes=args.proc, make_env=lambda: None)
 
@@ -90,9 +92,12 @@ if __name__ == "__main__":
                        fitness=env.fitness,
                        finish=env.finish,
                        is_finished=env.is_finished,
-                       successors=env.successors)
+                       successors=env.successors,
+                       early_end_test=env.early_end_test
+                       )
 
             env.cache.print_self("AT END")
             return root.best_score, env.count_evals() - evals_before, time.time() - time_before
+
 
         experiment_eval(one_iteration, repeat=args.repeat, processes=args.proc, make_env=lambda: None)

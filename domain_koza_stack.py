@@ -156,6 +156,10 @@ def make_env_stack(limit=5):
         assert isinstance(node, StackNode)
         return raw_fitness(node.stack)
 
+    @utils.pp_function('early_end_test()')
+    def early_end_test(score):
+        return score >= 1.0
+
     @utils.pp_function('is_finished()')
     def is_finished(node):
         assert isinstance(node, StackNode)
@@ -190,6 +194,7 @@ def make_env_stack(limit=5):
         return StackNode(stack)
 
     env.fitness = fitness
+    env.early_end_test = early_end_test
     env.finish = finish
     env.is_finished = is_finished
     env.successors = successors

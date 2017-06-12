@@ -128,7 +128,8 @@ def mct_update(nodes, tree, score, is_finished):
 
 
 @tracer_deco.tracer_deco(force_enable=True)
-def mct_search(node, num_steps, fitness, finish, is_finished, successors, expand_visits=8, tree_stats=None):
+def mct_search(node, num_steps, fitness, finish, is_finished, successors, expand_visits=8, tree_stats=None,
+               early_end_test=lambda s: False):
     if node.children is None:
         node.expand(successors, is_finished)
 
@@ -143,4 +144,6 @@ def mct_search(node, num_steps, fitness, finish, is_finished, successors, expand
         mct_update(nodes, tree, score, is_finished)
         if tree_stats is not None:
             tree_stats.update(tree, score)
+        if early_end_test(score):
+            return
         i += 1

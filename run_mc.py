@@ -28,7 +28,8 @@ if __name__ == "__main__":
                                      finish=env.finish,
                                      is_finished=env.is_finished,
                                      successors=env.successors,
-                                     advance=env.advance)
+                                     advance=env.advance,
+                                     early_end_test=env.early_end_test)
             return env.fitness(indiv), env.count_evals() - evals_before, time.time() - time_before
 
 
@@ -45,7 +46,8 @@ if __name__ == "__main__":
                        fitness=env.fitness,
                        finish=env.finish,
                        is_finished=env.is_finished,
-                       successors=env.successors)
+                       successors=env.successors,
+                       early_end_test=env.early_end_test)
             return root.best_score, env.count_evals() - evals_before, time.time() - time_before
 
 

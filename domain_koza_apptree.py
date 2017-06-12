@@ -83,6 +83,10 @@ def make_env_app_tree():
         assert node.uf_tree.typ is not None
         return raw_fitness(node.uf_tree)
 
+    @utils.pp_function('early_end_test()')
+    def early_end_test(score):
+        return score >= 1.0
+
     @utils.pp_function('finish()')
     def finish(node):
         assert isinstance(node, UFTNode)
@@ -117,6 +121,7 @@ def make_env_app_tree():
         return UFTNode(new_uf_tree, finished_tree.k)
 
     env.fitness = fitness
+    env.early_end_test = early_end_test
     env.finish = finish
     env.is_finished = is_finished
     env.successors = successors
