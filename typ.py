@@ -172,11 +172,17 @@ class TypSkolem(TypSymbol):
             return sub.table[self]
         return self
 
+    def get_next_var_id(self, acc=0):
+        if isinstance(self.name, int):
+            return max(acc, self.name + 1)
+        return acc
+
 
 T_ARROW = TypSymbol('->')
 
 T_INTERNAL_PAIR = TypSymbol('_P_')
 INTERNAL_PAIR_CONSTRUCTOR_SYM = '_p_'
+
 
 
 class TypTerm(Typ):
@@ -193,6 +199,16 @@ class TypTerm(Typ):
     def make_internal_tuple(xs):
         assert len(xs) > 0
         return reduce(lambda x, y: TypTerm.make_internal_pair(y, x), xs[::-1])
+
+    @staticmethod
+    def is_internal_pair_typ(typ):
+        return isinstance(typ, TypTerm) and \
+               len(typ.arguments) == 3 and \
+               typ.arguments[0] == T_INTERNAL_PAIR
+
+    @staticmethod
+    def split_internal_pair_typ(typ):
+        return typ.arguments[1], typ.arguments[2]
 
     def __init__(self, arguments):
         assert isinstance(arguments, tuple)
@@ -283,3 +299,6 @@ def make_norm_bijection(typ):
     table, rev_table = utils.construct_bijection(proto_table)
 
     return sub_m.Sub(table), sub_m.Sub(rev_table)
+
+
+T_INTERNAL_PAIR_CONSTRUCTOR = TypTerm.make_arrow(TypVar(0), TypTerm.make_arrow(TypVar(1), TypTerm.make_internal_pair(TypVar(0), TypVar(1))))

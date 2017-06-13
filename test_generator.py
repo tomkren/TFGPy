@@ -2,6 +2,9 @@ import unittest
 import time
 from collections import OrderedDict
 
+import random
+import sys
+
 import normalization
 import typ
 from app_tree import UnfinishedLeaf
@@ -115,7 +118,7 @@ def log(*args):
 def check_skeletons(tester):
     for goal, gamma, max_k in [d1(), d2(), d3()]:
         log('goal:', goal)
-        gamma.add_internal_pair()
+        # gamma.add_internal_pair() # todo uplne smazat až bude fungovat
         g = Generator(gamma)
         for k in range(1, max_k):
             log(' k:', k)
@@ -130,13 +133,14 @@ def check_successors(tester, generator, k, goal_typ):
         check_successors_acc(tester, generator, k, goal_typ, sk, sk_smart, all_trees)
 
 
+def log_expansion(parent_skeleton, next_skeletons, start_time):
+    delta_time = time.time() - start_time
+    ss_str = ' ... ' + ', '.join((str(s) for s in next_skeletons)) if next_skeletons else ''
+    num = str(len(next_skeletons))
+    log('  dt=', '%.2f' % delta_time, parent_skeleton, (' --> num=' + num), ss_str)
+
+
 def check_successors_acc(tester, generator, k, goal_typ, parent_skeleton, parent_skeleton_smart, all_trees):
-
-    def log_expansion(ps, ss, start_time):
-        delta_time = time.time() - start_time
-        ss_str = ': ' + ', '.join((str(s) for s in ss)) if ss else ''
-        log('  dt=', '%.2f' % delta_time, ps, ' --> ', len(ss), ss_str)
-
     t = time.time()
     skeletons = parent_skeleton.successors(generator, k, goal_typ)
     log_expansion(parent_skeleton, skeletons, t)
@@ -211,19 +215,70 @@ def check_generators_have_same_outputs(generators, goal, max_k):
         print(check_eq_info(sub_results_s))
 
 
+def separate_error_404():
+    # seed = random.randint(0, sys.maxsize)
+    seed = 7669612278400467845
+    random.seed(seed)
+    print(seed)
+
+    goal, gamma, max_k = d3()
+    gene = Generator(gamma)
+    hax_k = 3
+    hax_typ = parse_typ(('_P_', 4, (5, '->', (6, '->', 7))))
+    hax_tree = gene.gen_one(hax_k, hax_typ)
+    print(hax_tree.typ)
+
+
+def separate_error_404_sub():
+
+    goal, gamma, max_k = d3()
+    gene = Generator(gamma)
+    k = 1
+    n = 4
+    typ = parse_typ((1, '->', (2, '->', 3)))
+    tree = gene.subs(k, typ, n)
+    print(tree.typ)
+
+
+def separate_error_ip_new():
+    goal, gamma, max_k = d2()
+    gene = Generator(gamma)
+    k = 2
+    skel = UnfinishedLeaf(goal)
+
+    global IS_LOG_PRINTING
+    IS_LOG_PRINTING = True
+
+    t = time.time()
+    next_skels = skel.successors_smart(gene, k)
+    log_expansion(skel, next_skels, t)
+
+    # print(next_skels)
+
 if __name__ == "__main__":
-    if not True:
-        unittest.main()
+    if True:
+        # unittest.main()
+        # separate_error_ip_new()
+        separate_error_404()
+        # separate_error_404_sub()
     else:
+
+        # seed = random.randint(0, sys.maxsize)
+        seed = 1482646273836000672
+        # seed = 2659613674626116145
+        # seed = 249273683574813401
+        random.seed(seed)
+        print(seed)
+        # print('randomState:', random.getstate())
+
         IS_LOG_PRINTING = True
         check_skeletons(TestGen())
 
     if not True:
         goal, gamma, max_k = d2()
 
-        print(gamma, '\n')
-
-        gamma.add_internal_pair()
+        # print(gamma, '\n')
+        # gamma.add_internal_pair()  # todo uplne smazat až bude fungovat
 
         print(gamma, '\n')
 

@@ -1,7 +1,7 @@
 from itertools import chain
 
 import sub
-from typ import fresh, is_fun_type, split_fun_type, new_var, TypTerm, INTERNAL_PAIR_CONSTRUCTOR_SYM
+from typ import fresh, is_fun_type, split_fun_type, new_var, TypTerm, INTERNAL_PAIR_CONSTRUCTOR_SYM, T_INTERNAL_PAIR_CONSTRUCTOR
 
 
 class AppTree:
@@ -215,10 +215,14 @@ class Leaf(AppTree):
         return Leaf(self.sym, sub(self.typ))
 
     def is_well_typed_acc(self, gamma, n):
-        if self.sym not in gamma.ctx:
-            return False, None
 
-        t_s = gamma.ctx[self.sym].typ
+        if self.sym == INTERNAL_PAIR_CONSTRUCTOR_SYM:
+            t_s = T_INTERNAL_PAIR_CONSTRUCTOR
+        else:
+            if self.sym not in gamma.ctx:
+                return False, None
+            t_s = gamma.ctx[self.sym].typ
+
         fr = fresh(t_s, self.typ, n)
         mu = sub.mgu(self.typ, fr.typ)
 
