@@ -7,6 +7,8 @@ from domain_koza_apptree import Environment
 from fitness_cache import FitnessCache
 from tree_node import StackNode
 
+size_d = {}
+
 
 def regression_domain_koza_poly_stack():
     def koza_poly(x):
@@ -52,9 +54,8 @@ def regression_domain_koza_poly_stack():
 
         if not missing:
             return []
-        if terminals + non_terminals + missing >= limit:
-            return terminal_symbols
-        return all_symbols
+        return [s for s, (arity, _) in symbols_d.items()
+                if terminals + non_terminals + missing + arity <= limit]
 
     def finish(stack, limit):
         missing, terminals, non_terminals = count_missing(stack)
@@ -74,7 +75,7 @@ def regression_domain_koza_poly_stack():
                 missing -= 1
                 terminals += 1
             else:
-                missing = missing - 1 + arity
+                missing += arity - 1
                 non_terminals += 1
 
             stack.append(ns)
@@ -117,6 +118,9 @@ def regression_domain_koza_poly_stack():
         return v[0]
 
     def fitness(stack, target_f=koza_poly, num_samples=20):
+        global size_d
+        size_d[len(stack)] = size_d.get(len(stack), 0) + 1
+
         assert count_missing(stack)[0] == 0
         s = repr(stack)
 
@@ -141,7 +145,7 @@ def regression_domain_koza_poly_stack():
     return finish, is_finished, successors, fitness, eval_stack, (lambda: len(cache)), cache
 
 
-def make_env_stack(limit=5):
+def make_env_stack(max_size=5):
     raw_finish, raw_is_finished, raw_successors, raw_fitness, raw_eval, count_evals, cache = regression_domain_koza_poly_stack()
     env = Environment()
     env.count_evals = count_evals
@@ -169,12 +173,12 @@ def make_env_stack(limit=5):
     def finish(node):
         assert isinstance(node, StackNode)
 
-        return StackNode(raw_finish(node.stack, limit))
+        return StackNode(raw_finish(node.stack, max_size))
 
     @utils.pp_function('successors()')
     def successors(node):
         assert isinstance(node, StackNode)
-        return [StackNode(stack) for stack in raw_successors(node.stack, limit)]
+        return [StackNode(stack) for stack in raw_successors(node.stack, max_size)]
 
     @utils.pp_function('advance()')
     def advance(node, finished_node):

@@ -2,6 +2,8 @@
 import argparse
 import time
 
+import domain_koza_apptree
+import domain_koza_stack
 from app_tree import UnfinishedLeaf
 from domain_koza_apptree import make_env_app_tree
 from domain_koza_stack import make_env_stack
@@ -70,6 +72,8 @@ if __name__ == "__main__":
                                      early_end_test=env.early_end_test)
 
             env.cache.print_self("AT END")
+            #print('\n'.join("%s = %s"%(a,b) for a,b in sorted(domain_koza_apptree.size_d.items())))
+            #print('\n'.join("%s = %s"%(a,b) for a,b in sorted(domain_koza_stack.size_d.items())))
             return env.fitness(indiv), env.count_evals() - evals_before, time.time() - time_before
 
 

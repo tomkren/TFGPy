@@ -1,6 +1,7 @@
 import math
 from collections import OrderedDict
 
+import app_tree
 import generator
 import utils
 from fitness_cache import FitnessCache
@@ -8,6 +9,7 @@ from nmcs import dfs_advance_skeleton
 from parsers import parse_typ, parse_ctx
 from tree_node import UFTNode, ChooseKTNode
 
+size_d = {}
 
 class Environment:
     pass
@@ -45,6 +47,10 @@ def regression_domain_koza_poly():
     cache = FitnessCache()
 
     def fitness(individual_app_tree, target_f=koza_poly, num_samples=20):
+        global size_d
+        size = individual_app_tree.count_nodes()[app_tree.Leaf]
+        size_d[size] = size_d.get(size, 0) + 1
+
         s = "lambda x : %s" % individual_app_tree.eval_str()
         cres = cache.d.get(s, None)
         if cres is not None:
@@ -64,7 +70,7 @@ def regression_domain_koza_poly():
     return goal, gamma, fitness, (lambda: len(cache)), cache
 
 
-def make_env_app_tree():
+def make_env_app_tree(max_size=5):
     goal, gamma, raw_fitness, count_evals, cache = regression_domain_koza_poly()
     gen = generator.Generator(gamma)
 
