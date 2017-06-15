@@ -208,7 +208,11 @@ def make_env_stack(max_size=5):
 
 
 if __name__ == "__main__":
-    finish, is_finished, successors, fitness, eval_stack, count_evals = regression_domain_koza_poly_stack()
+    finish, is_finished, successors, fitness, eval_stack, count_evals, cache = regression_domain_koza_poly_stack()
 
-    print(eval_stack(['x'], 2))
-    print(successors(['times', 'plus', 4, 'x'], 5))
+    for i in range(10000):
+        s = ['plus', 'plus']
+        f = finish(s, 15)
+        fitness(f)
+
+    print('\n'.join("%s = %s" % (a, b) for a, b in sorted(size_d.items())))

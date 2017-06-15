@@ -9,7 +9,7 @@ from domain_koza_apptree import make_env_app_tree
 from domain_koza_stack import make_env_stack
 from mcts import MCTNode, mct_search
 from nmcs import nested_mc_search
-from tree_node import ChooseKTNode, StackNode
+from tree_node import ChooseKTNode, StackNode, UFTNode
 from utils import experiment_eval
 
 
@@ -25,12 +25,19 @@ def parse_args():
 
     parser.add_argument('--stack', action='store_true', default=False)
     parser.add_argument('--app-tree', action='store_true', default=False)
+    parser.add_argument('--app-tree-uf', action='store_true', default=False)
 
     parser.add_argument('--nmcs-level', type=int, default=1)
     parser.add_argument('--mcts-expand', type=int, default=8)
     parser.add_argument('--mcts-num-steps', type=int, default=100)
 
+    parser.add_argument('--print-size-hist', action='store_true', default=False)
     return parser.parse_args()
+
+
+def print_k_histogram(domain):
+    print("k-size histogram")
+    print('\n'.join("%s = %s" % (a, b) for a, b in sorted(domain.size_d.items())))
 
 
 if __name__ == "__main__":
@@ -38,10 +45,9 @@ if __name__ == "__main__":
 
     assert not (args.mcts and args.nmcs)
     assert args.mcts or args.nmcs
-    assert not (args.stack and args.app_tree)
-    assert args.stack or args.app_tree
+    assert not (args.stack and args.app_tree and args.app_tree_uf)
 
-    if args.app_tree:
+    if args.app_tree or args.app_tree_uf:
         make_env = make_env_app_tree
     elif args.stack:
         make_env = lambda: make_env_stack(args.k)
@@ -57,6 +63,8 @@ if __name__ == "__main__":
             time_before = time.time()
             if args.app_tree:
                 root = ChooseKTNode(UnfinishedLeaf(), args.k)
+            elif args.app_tree_uf:
+                root = UFTNode(UnfinishedLeaf(), args.k)
             elif args.stack:
                 root = StackNode([])
             else:
@@ -72,8 +80,8 @@ if __name__ == "__main__":
                                      early_end_test=env.early_end_test)
 
             env.cache.print_self("AT END")
-            #print('\n'.join("%s = %s"%(a,b) for a,b in sorted(domain_koza_apptree.size_d.items())))
-            #print('\n'.join("%s = %s"%(a,b) for a,b in sorted(domain_koza_stack.size_d.items())))
+            if args.print_size_hist:
+                print_histogram(domain_koza_stack if args.stack else domain_koza_apptree)
             return env.fitness(indiv), env.count_evals() - evals_before, time.time() - time_before
 
 
@@ -87,6 +95,8 @@ if __name__ == "__main__":
             time_before = time.time()
             if args.app_tree:
                 root = MCTNode(ChooseKTNode(UnfinishedLeaf(), args.k))
+            elif args.app_tree_uf:
+                root = MCTNode(UFTNode(UnfinishedLeaf(), args.k))
             elif args.stack:
                 root = MCTNode(StackNode([]))
             else:
@@ -101,6 +111,8 @@ if __name__ == "__main__":
                        )
 
             env.cache.print_self("AT END")
+            if args.print_size_hist:
+                print_histogram(domain_koza_stack if args.stack else domain_koza_apptree)
             return root.best_score, env.count_evals() - evals_before, time.time() - time_before
 
 
