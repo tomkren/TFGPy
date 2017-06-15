@@ -81,7 +81,7 @@ if __name__ == "__main__":
 
             env.cache.print_self("AT END")
             if args.print_size_hist:
-                print_histogram(domain_koza_stack if args.stack else domain_koza_apptree)
+                print_k_histogram(domain_koza_stack if args.stack else domain_koza_apptree)
             return env.fitness(indiv), env.count_evals() - evals_before, time.time() - time_before
 
 
@@ -112,7 +112,7 @@ if __name__ == "__main__":
 
             env.cache.print_self("AT END")
             if args.print_size_hist:
-                print_histogram(domain_koza_stack if args.stack else domain_koza_apptree)
+                print_k_histogram(domain_koza_stack if args.stack else domain_koza_apptree)
             return root.best_score, env.count_evals() - evals_before, time.time() - time_before
 
 
