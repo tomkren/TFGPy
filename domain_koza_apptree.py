@@ -62,17 +62,18 @@ def regression_domain_koza_poly():
         samples = [-1 + 0.1 * i for i in range(num_samples)]
         try:
             error = sum(abs(fun(val) - target_f(val)) for val in samples)
+            score = 1 / (1 + error)
         except (OverflowError, ValueError):
-            return 0.0
-        score = 1 / (1 + error)
+            score = 0.0
+
         cache.update(s, score)
         return score
 
     return goal, gamma, fitness, (lambda: len(cache)), cache
 
 
-def make_env_app_tree(max_size=5):
-    goal, gamma, raw_fitness, count_evals, cache = regression_domain_koza_poly()
+def make_env_app_tree(get_raw_domain=regression_domain_koza_poly, early_end_limit=1.0):
+    goal, gamma, raw_fitness, count_evals, cache = get_raw_domain()
     gen = generator.Generator(gamma)
 
     env = Environment()
@@ -92,7 +93,7 @@ def make_env_app_tree(max_size=5):
 
     @utils.pp_function('early_end_test()')
     def early_end_test(score):
-        return score >= 1.0
+        return early_end_limit is None or score >= early_end_limit
 
     @utils.pp_function('finish()')
     def finish(node):

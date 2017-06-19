@@ -135,9 +135,9 @@ def regression_domain_koza_poly_stack():
                 fv = eval_stack(stack, val)
                 tv = target_f(val)
                 error += abs(fv - tv)
+            score = 1 / (1 + error)
         except (OverflowError, ValueError):
-            return 0.0
-        score = 1 / (1 + error)
+            score = 0.0
 
         cache.update(s, score)
         return score
