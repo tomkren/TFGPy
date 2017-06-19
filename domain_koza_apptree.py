@@ -7,9 +7,10 @@ import utils
 from fitness_cache import FitnessCache
 from nmcs import dfs_advance_skeleton
 from parsers import parse_typ, parse_ctx
-from tree_node import UFTNode, ChooseKTNode
+from tree_node import UFTNode, ChooseKTNode, MaxKTNode
 
 size_d = {}
+
 
 class Environment:
     pass
@@ -100,9 +101,17 @@ def make_env_app_tree(max_size=5):
             assert node.uf_tree.is_finished()
             return node.uf_tree
 
-        finished_tree = gen.gen_one_uf(node.uf_tree, node.k, goal)
-        assert finished_tree.typ is not None
-        return UFTNode(finished_tree, node.k)
+        if isinstance(node, MaxKTNode):
+            finished = gen.gen_one_uf_up_to(node.uf_tree, node.max_k, goal)
+            assert finished is not None
+            finished_tree, k = finished
+            ret = UFTNode(finished_tree, k)
+        elif isinstance(node, UFTNode):
+            finished_tree = gen.gen_one_uf(node.uf_tree, node.k, goal)
+            ret = UFTNode(finished_tree, node.k)
+
+        assert ret.uf_tree.typ is not None
+        return ret
 
     @utils.pp_function('is_finished()')
     def is_finished(node):
@@ -113,6 +122,8 @@ def make_env_app_tree(max_size=5):
     def successors(node):
         if isinstance(node, ChooseKTNode):
             return [UFTNode(node.uf_tree, k) for k in range(2, node.max_k + 1)]
+        if isinstance(node, MaxKTNode):
+            return [MaxKTNode(c, node.max_k) for c in node.uf_tree.successors_up_to(gen, node.max_k, goal)]
         if isinstance(node, UFTNode):
             return [UFTNode(c, node.k) for c in node.uf_tree.successors(gen, node.k, goal)]
         assert False

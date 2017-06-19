@@ -212,11 +212,12 @@ def check_generators_have_same_outputs(generators, goal, max_k):
 
 
 if __name__ == "__main__":
-    if not True:
+    if False:
         unittest.main()
     else:
-        IS_LOG_PRINTING = True
-        check_skeletons(TestGen())
+        pass
+        #IS_LOG_PRINTING = True
+        #check_skeletons(TestGen())
 
     if not True:
         goal, gamma, max_k = d2()

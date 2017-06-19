@@ -31,6 +31,16 @@ class AppTree:
     def __hash__(self):
         raise NotImplementedError
 
+    def successors_up_to(self, gen, max_k, typ):
+        ret = []
+        for naive_succ in self.successors_naive(gen.gamma):
+            for k in range(naive_succ.count_min_k(), max_k + 1):
+                num = gen.get_num_uf(naive_succ, k, typ)
+                if num > 0:
+                    ret.append(naive_succ)
+                    break
+        return ret
+
     def successors(self, gen, k, typ):
         ret = []
         for naive_succ in self.successors_naive(gen.gamma):
@@ -77,6 +87,12 @@ class AppTree:
     def count_finished_nodes(self):
         counts = self.count_nodes()
         return counts.get(App, 0) + counts.get(Leaf, 0)
+
+    def count_min_k(self):
+        counts = self.count_nodes()
+        min_k = counts.get(UnfinishedLeaf, 0) + counts.get(Leaf, 0)
+        assert min_k > 0
+        return min_k
 
     def count_nodes(self):
         if self.counts is None:

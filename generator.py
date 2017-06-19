@@ -125,7 +125,7 @@ class Generator:
 
         if num_uf_leafs > 0:
             hax_typ = TypTerm.make_internal_tuple([uf_leaf.typ for uf_leaf in uf_leafs])
-            k_hax_pair = k - num_leafs + num_uf_leafs-1
+            k_hax_pair = k - num_leafs + num_uf_leafs - 1
             return self.subs(k_hax_pair, hax_typ, n)
         elif num_leafs == k:
             return [sub.PreSubRes(1, sub.Sub())]
@@ -183,7 +183,7 @@ class Generator:
 
         if num_uf_leafs > 0:
             hax_typ = TypTerm.make_internal_tuple([uf_leaf.typ for uf_leaf in uf_leafs])
-            k_hax_pair = k - num_leafs + num_uf_leafs-1
+            k_hax_pair = k - num_leafs + num_uf_leafs - 1
             hax_tree = self.gen_one(k_hax_pair, hax_typ)
             hax_subtrees = split_internal_tuple(hax_tree)
             assert len(uf_leafs) == len(hax_subtrees)
@@ -193,6 +193,18 @@ class Generator:
             return uf_tree
         else:
             return None
+
+    def gen_one_uf_up_to(self, uf_tree, max_k, typ):
+        min_k = uf_tree.count_min_k()
+        candidate_ks = list(range(min_k, max_k + 1))
+        random.shuffle(candidate_ks)
+
+        while candidate_ks:
+            k = candidate_ks.pop()
+            ret = self.gen_one_random_uf(uf_tree, k, typ, 0)
+            if ret is not None:
+                return ret[0], k
+        return None
 
     def gen_one_uf(self, uf_tree, k, typ):
         ret = self.gen_one_random_uf(uf_tree, k, typ, 0)
