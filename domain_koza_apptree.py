@@ -135,7 +135,10 @@ def make_env_app_tree(max_size=5):
         new_uf_tree = dfs_advance_skeleton(node.uf_tree, finished_tree.uf_tree)
         if new_uf_tree is None:
             return None
-        return UFTNode(new_uf_tree, finished_tree.k)
+        if isinstance(node, MaxKTNode):
+            return MaxKTNode(new_uf_tree, node.max_k)
+        if isinstance(node, UFTNode):
+            return UFTNode(new_uf_tree, finished_tree.k)
 
     env.fitness = fitness
     env.early_end_test = early_end_test
