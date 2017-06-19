@@ -37,7 +37,7 @@ class TestStack(unittest.TestCase):
         a = ['rdiv', 'plus', 5, 'x', 2]
         self.assertEqual(finish(a, 5), a)
         b = ['rdiv', 'plus', 2]
-        self.assertEqual(finish(b, 3), b + ['x', 'x'])
+        self.assertEqual(finish(b, 5), b + ['x', 'x'])
 
 
 class TestMCRegression(unittest.TestCase):
