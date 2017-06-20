@@ -6,7 +6,7 @@ import utils
 
 # 0.5 is a reasonable value
 # but it depends on the fitness function at hand
-C_UCT_EXPLORE = 0.5
+C_UCT_EXPLORE_DEFAULT = 0.5
 
 
 #
@@ -46,19 +46,19 @@ class MCTNode:
             # this prevents further searching through this (now finished) node
             self.finished_flag = True
 
-    def urgency(self, total_visits, method='best'):
+    def urgency(self, total_visits, method='best', c_uct_explore=C_UCT_EXPLORE_DEFAULT):
         if self.finished_flag:
             return 0.0
 
-        exploration = C_UCT_EXPLORE * math.sqrt(math.log(total_visits) / (1 + self.visits))
+        exploration = c_uct_explore * math.sqrt(math.log(total_visits) / (1 + self.visits))
 
         # from preliminary tests, best is the best
         if method == 'best':
-            exploatation = (1 - C_UCT_EXPLORE) * self.best_score
+            exploatation = (1 - c_uct_explore) * self.best_score
         elif method == 'avg':
-            exploatation = (1 - C_UCT_EXPLORE) * self.score_sum / (1 + self.score_num)
+            exploatation = (1 - c_uct_explore) * self.score_sum / (1 + self.score_num)
         elif method == '(avg+best)/2':
-            exploatation = (1 - C_UCT_EXPLORE) * 0.5 * (self.best_score + self.score_sum / (1 + self.score_num))
+            exploatation = (1 - c_uct_explore) * 0.5 * (self.best_score + self.score_sum / (1 + self.score_num))
         else:
             assert False
 
@@ -83,7 +83,7 @@ class MCTNode:
 
 
 @tracer_deco.tracer_deco()
-def mct_descend(node, expand_visits, successors, is_finished, sample_by_urgency=False):
+def mct_descend(node, expand_visits, successors, is_finished, sample_by_urgency, urgency_method, urgency_c_uct_explore):
     node.visits += 1
     nodes = [node]
 
@@ -94,7 +94,8 @@ def mct_descend(node, expand_visits, successors, is_finished, sample_by_urgency=
             children = list(nodes[-1].children)
             # symmetry breaking for children with the same urgency
             random.shuffle(children)
-            node = max(children, key=lambda child_node: child_node.urgency(node.visits))
+            node = max(children,
+                       key=lambda child_node: child_node.urgency(node.visits, urgency_method, urgency_c_uct_explore))
         else:
             # JM: this is probably worse
             # tested on Koza's polynomial domain with
@@ -129,13 +130,15 @@ def mct_update(nodes, tree, score, is_finished):
 
 @tracer_deco.tracer_deco(force_enable=True)
 def mct_search(node, num_steps, fitness, finish, is_finished, successors, expand_visits=8, tree_stats=None,
-               early_end_test=lambda s: False):
+               early_end_test=lambda s: False, sample_by_urgency=False, urgency_method='best',
+               urgency_c_uct_explore=C_UCT_EXPLORE_DEFAULT):
     if node.children is None:
         node.expand(successors, is_finished)
 
     i = 0
     while i < num_steps and not node.finished_flag:
-        nodes = mct_descend(node, expand_visits, successors, is_finished)
+        nodes = mct_descend(node, expand_visits, successors, is_finished, sample_by_urgency, urgency_method,
+                            urgency_c_uct_explore)
         # no need to do playout if the subtree is
         # fully expanded and
         if nodes[-1].finished_flag:
