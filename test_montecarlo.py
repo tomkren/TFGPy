@@ -1,19 +1,19 @@
 import random
 import unittest
 
+import domain_koza_apptree
+import domain_koza_stack
 import generator
 from app_tree import UnfinishedLeaf
-from domain_koza_apptree import regression_domain_koza_poly, make_env_app_tree
-from domain_koza_stack import regression_domain_koza_poly_stack, make_env_stack
 from mcts import MCTNode
 from mcts import mct_search
 from nmcs import nested_mc_search
 from tree_node import ChooseKTNode, StackNode
 
 
-class TestKozaRegressionDomain(unittest.TestCase):
+class TestKozaRegressionDomainApptree(unittest.TestCase):
     def test_domain(self):
-        goal, gamma, raw_fitness, count_evals, cache = regression_domain_koza_poly()
+        goal, gamma, raw_fitness, count_evals, cache = domain_koza_apptree.regression_domain_koza_poly()
         gen = generator.Generator(gamma)
         random.seed(5)
         indiv = gen.gen_one(20, goal)
@@ -25,9 +25,9 @@ class TestKozaRegressionDomain(unittest.TestCase):
         self.assertTrue(True)
 
 
-class TestStack(unittest.TestCase):
+class TestKozaRegressionDomainStack(unittest.TestCase):
     def test(self):
-        finish, is_finished, successors, fitness, eval_stack, count_evals, cache = regression_domain_koza_poly_stack()
+        finish, is_finished, successors, fitness, eval_stack, count_evals, cache = domain_koza_stack.regression_domain_koza_poly_stack()
 
         self.assertEqual(eval_stack(['x'], 3), 3)
         self.assertEqual(eval_stack(['plus', 6, 'x'], 3), 6 + 3)
@@ -40,9 +40,9 @@ class TestStack(unittest.TestCase):
         self.assertEqual(finish(b, 5), b + ['x', 'x'])
 
 
-class TestMCRegression(unittest.TestCase):
+class TestMCKozaRegressionApptree(unittest.TestCase):
     def test_nmcs(self):
-        env = make_env_app_tree()
+        env = domain_koza_apptree.make_env_app_tree()
         nested_mc_search(ChooseKTNode(UnfinishedLeaf(), 10),
                          max_level=1,
                          fitness=env.fitness,
@@ -54,7 +54,7 @@ class TestMCRegression(unittest.TestCase):
         self.assertTrue(True)
 
     def test_mcts(self):
-        env = make_env_app_tree()
+        env = domain_koza_apptree.make_env_app_tree()
         root = MCTNode(ChooseKTNode(UnfinishedLeaf(), 5))
         mct_search(root, expand_visits=1, num_steps=50,
                    fitness=env.fitness,
@@ -65,9 +65,9 @@ class TestMCRegression(unittest.TestCase):
         self.assertTrue(True)
 
 
-class TestMCRegressionStack(unittest.TestCase):
+class TestMCKozaRegressionStack(unittest.TestCase):
     def test_nmcs(self):
-        env = make_env_stack(10)
+        env = domain_koza_stack.make_env_stack(10)
         nested_mc_search(StackNode([]),
                          max_level=1,
                          fitness=env.fitness,
@@ -79,7 +79,7 @@ class TestMCRegressionStack(unittest.TestCase):
         self.assertTrue(True)
 
     def test_mcts(self):
-        env = make_env_stack(5)
+        env = domain_koza_stack.make_env_stack(5)
         root = MCTNode(StackNode([]))
         mct_search(root, expand_visits=1, num_steps=50,
                    fitness=env.fitness,

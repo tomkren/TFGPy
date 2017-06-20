@@ -141,6 +141,7 @@ def mct_search(node, num_steps, fitness, finish, is_finished, successors, expand
         if nodes[-1].finished_flag:
             continue
         tree, score = mct_playout(nodes[-1], finish, fitness)
+        assert tree is not None
         mct_update(nodes, tree, score, is_finished)
         if tree_stats is not None:
             tree_stats.update(tree, score)

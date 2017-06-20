@@ -102,6 +102,10 @@ def make_env_app_tree(get_raw_domain=regression_domain_koza_poly, early_end_limi
             assert node.uf_tree.is_finished()
             return node.uf_tree
 
+        # TODO this branch is not done
+        # it is possible to do the same as in MacxKTNode
+        assert not isinstance(node, ChooseKTNode)
+
         if isinstance(node, MaxKTNode):
             finished = gen.gen_one_uf_up_to(node.uf_tree, node.max_k, goal)
             assert finished is not None
@@ -111,6 +115,10 @@ def make_env_app_tree(get_raw_domain=regression_domain_koza_poly, early_end_limi
             finished_tree = gen.gen_one_uf(node.uf_tree, node.k, goal)
             ret = UFTNode(finished_tree, node.k)
 
+        # this means that the node we are to finish
+        # is not populated (no such tree exists)
+        # in such case, we should not even be called
+        assert ret.uf_tree is not None
         assert ret.uf_tree.typ is not None
         return ret
 
@@ -122,7 +130,9 @@ def make_env_app_tree(get_raw_domain=regression_domain_koza_poly, early_end_limi
     @utils.pp_function('successors()')
     def successors(node):
         if isinstance(node, ChooseKTNode):
-            return [UFTNode(node.uf_tree, k) for k in range(2, node.max_k + 1)]
+            return [UFTNode(node.uf_tree, k) for k in range(2, node.max_k + 1)
+                    # if gen.get_num_uf(node.uf_tree, k, goal)
+                    ]
         if isinstance(node, MaxKTNode):
             return [MaxKTNode(c, node.max_k) for c in node.uf_tree.successors_up_to(gen, node.max_k, goal)]
         if isinstance(node, UFTNode):
