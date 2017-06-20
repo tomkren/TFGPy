@@ -17,6 +17,7 @@ class TestKozaRegressionDomainApptree(unittest.TestCase):
         gen = generator.Generator(gamma)
         random.seed(5)
         indiv = gen.gen_one(20, goal)
+        self.assertIsNotNone(indiv)
         istr = indiv.eval_str()
         ifit = raw_fitness(indiv)
         if False:
