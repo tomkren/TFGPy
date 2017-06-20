@@ -5,12 +5,20 @@ import time
 import domain_koza_apptree
 import domain_koza_stack
 from app_tree import UnfinishedLeaf
-from domain_koza_apptree import make_env_app_tree
-from domain_koza_stack import make_env_stack
-from mcts import MCTNode, mct_search
+import domain_koza_apptree
+import domain_koza_stack
+import domain_parity_apptree
+import domain_primes_apptree
+from mcts import MCTNode, mct_search, C_UCT_EXPLORE_DEFAULT
 from nmcs import nested_mc_search
 from tree_node import ChooseKTNode, StackNode, UFTNode, MaxKTNode
 from utils import experiment_eval
+
+D_PARITY = 'parity'
+
+D_PRIMES = 'primes'
+
+D_KOZA_POLY = 'koza_poly'
 
 APP_T_MAX_K = 'max_k'
 
@@ -29,13 +37,18 @@ def parse_args():
     parser.add_argument('--mcts', action='store_true', default=False)
     parser.add_argument('--nmcs', action='store_true', default=False)
 
+    parser.add_argument('--domain', type=str, choices=[D_KOZA_POLY, D_PRIMES, D_PARITY], default=D_KOZA_POLY)
     parser.add_argument('--stack', action='store_true', default=False)
     parser.add_argument('--app-tree', type=str, choices=['', APP_T_CHOOSE_K, APP_T_FIXED_K, APP_T_MAX_K],
                         default='')
 
     parser.add_argument('--nmcs-level', type=int, default=1)
+
     parser.add_argument('--mcts-expand', type=int, default=8)
     parser.add_argument('--mcts-num-steps', type=int, default=100)
+    parser.add_argument('--mcts-sample-by-urgency', action='store_true', default=False)
+    parser.add_argument('--mcts-urgency-method', choices=['best', 'avg', '(avg+best)/2'], default='best')
+    parser.add_argument('--mcts-urgency-c-uct', type=float, default=C_UCT_EXPLORE_DEFAULT)
 
     parser.add_argument('--print-size-hist', action='store_true', default=False)
     return parser.parse_args()
@@ -55,9 +68,19 @@ if __name__ == "__main__":
     assert not (args.stack and args.app_tree)
 
     if args.app_tree:
-        make_env = make_env_app_tree
+        if args.domain == D_KOZA_POLY:
+            domain = domain_koza_apptree
+        elif args.domain == D_PARITY:
+            domain = domain_parity_apptree
+        elif args.domain == D_PRIMES:
+            domain = domain_primes_apptree
+        else:
+            assert False
+        make_env = domain.make_env_app_tree
     elif args.stack:
-        make_env = lambda: make_env_stack(args.k)
+        assert args.domain == 'koza_poly'
+        domain = domain_koza_stack
+        make_env = lambda: domain.make_env_stack(args.k)
     else:
         assert False
 
@@ -90,7 +113,7 @@ if __name__ == "__main__":
 
             env.cache.print_self("AT END")
             if args.print_size_hist:
-                print_k_histogram(domain_koza_stack if args.stack else domain_koza_apptree)
+                print_k_histogram(domain)
             return env.fitness(indiv), env.count_evals() - evals_before, time.time() - time_before
 
 
@@ -119,11 +142,14 @@ if __name__ == "__main__":
                        finish=env.finish,
                        is_finished=env.is_finished,
                        successors=env.successors,
-                       early_end_test=env.early_end_test)
+                       early_end_test=env.early_end_test,
+                       sample_by_urgency=args.mcts_sample_by_urgency,
+                       urgency_method=args.mcts_urgency_method,
+                       urgency_c_uct_explore=args.mcts_urgency_c_uct)
 
             env.cache.print_self("AT END")
             if args.print_size_hist:
-                print_k_histogram(domain_koza_stack if args.stack else domain_koza_apptree)
+                print_k_histogram(domain)
             return mct_root.best_score, env.count_evals() - evals_before, time.time() - time_before
 
 
