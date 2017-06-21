@@ -16,10 +16,22 @@ class Environment:
     pass
 
 
-def regression_domain_koza_poly():
-    def koza_poly(x):
-        return x + x ** 2 + x ** 3 + x ** 4
+def koza_poly(x):
+    return x + x ** 2 + x ** 3 + x ** 4
 
+
+def eval_regression(fun, target_f, num_samples=20):
+    assert callable(fun)
+    samples = [-1 + 0.1 * i for i in range(num_samples)]
+    try:
+        error = sum(abs(fun(val) - target_f(val)) for val in samples)
+        score = 1 / (1 + error)
+    except (OverflowError, ValueError):
+        score = 0.0
+    return score
+
+
+def regression_domain_koza():
     global_symbols = {
         'plus': lambda x: (lambda y: x + y),
         'minus': lambda x: (lambda y: x - y),
@@ -47,7 +59,7 @@ def regression_domain_koza_poly():
 
     cache = FitnessCache()
 
-    def fitness(individual_app_tree, target_f=koza_poly, num_samples=20):
+    def fitness(individual_app_tree):
         global size_d
         size = individual_app_tree.count_nodes()[app_tree.Leaf]
         size_d[size] = size_d.get(size, 0) + 1
@@ -56,15 +68,9 @@ def regression_domain_koza_poly():
         cres = cache.d.get(s, None)
         if cres is not None:
             return cres
-
         fun = eval(s, global_symbols)
-        assert callable(fun)
-        samples = [-1 + 0.1 * i for i in range(num_samples)]
-        try:
-            error = sum(abs(fun(val) - target_f(val)) for val in samples)
-            score = 1 / (1 + error)
-        except (OverflowError, ValueError):
-            score = 0.0
+
+        score = eval_regression(fun, koza_poly, 20)
 
         cache.update(s, score)
         return score
@@ -72,7 +78,7 @@ def regression_domain_koza_poly():
     return goal, gamma, fitness, (lambda: len(cache)), cache
 
 
-def make_env_app_tree(get_raw_domain=regression_domain_koza_poly, early_end_limit=1.0):
+def make_env_app_tree(get_raw_domain=regression_domain_koza, early_end_limit=1.0):
     goal, gamma, raw_fitness, count_evals, cache = get_raw_domain()
     gen = generator.Generator(gamma)
 

@@ -3,17 +3,15 @@ import math
 import random
 
 import utils
-from domain_koza_apptree import Environment
+from domain_koza_apptree import Environment, koza_poly, eval_regression
 from fitness_cache import FitnessCache
+from stack import Stack
 from tree_node import StackNode
 
 size_d = {}
 
 
-def regression_domain_koza_poly_stack():
-    def koza_poly(x):
-        return x + x ** 2 + x ** 3 + x ** 4
-
+def regression_domain_koza_stack():
     def raiserun():
         raise RuntimeError()
 
@@ -28,125 +26,32 @@ def regression_domain_koza_poly_stack():
         'exp': (1, math.exp),
         'x': (0, raiserun),
     }
-
-    all_symbols = list(symbols_d.keys())
-    terminals_d = {k: v for k, v in symbols_d.items() if v[0] == 0}
-    terminal_symbols = list(terminals_d.keys())
+    sutils = Stack(symbols_d)
 
     cache = FitnessCache()
 
-    def count_missing(stack):
-        missing = 1
-        non_terminals = 0
-        terminals = 0
-
-        for symbol in stack:
-            arity, _ = symbols_d.get(symbol, (0, None))
-            missing += arity - 1
-            if arity:
-                non_terminals += 1
-            else:
-                terminals += 1
-        return missing, terminals, non_terminals
-
-    def successor_symbols(stack, limit, count=None):
-        missing, terminals, non_terminals = count if count is not None else count_missing(stack)
-
-        if not missing:
-            return []
-        return [s for s, (arity, _) in symbols_d.items()
-                if terminals + non_terminals + missing + arity <= limit]
-
-    def finish(stack, limit):
-        missing, terminals, non_terminals = count_missing(stack)
-
-        assert missing >= 0
-        if not missing:
-            return stack
-        stack = copy.copy(stack)
-
-        while missing > 0:
-            ssym = successor_symbols(stack, limit, (missing, terminals, non_terminals))
-            assert ssym
-            ns = random.choice(ssym)
-
-            arity, _ = symbols_d[ns]
-            if not arity:
-                missing -= 1
-                terminals += 1
-            else:
-                missing += arity - 1
-                non_terminals += 1
-
-            stack.append(ns)
-
-        return stack
-
-    def is_finished(stack):
-        nonfinished = count_missing(stack)[0]
-        return nonfinished == 0
-
-    def successors(stack, limit):
-        count = count_missing(stack)
-        ssym = successor_symbols(stack, limit, count)
-
-        if not ssym:
-            return []
-
-        return [stack + [s] for s in ssym]
-
-    def eval_stack(stack, val):
-        s = copy.copy(stack)
-        v = []
-
-        while len(s):
-            # print(s, v)
-            symbol = s.pop()
-            if symbol in symbols_d:
-                arity, fn = symbols_d[symbol]
-                if arity == 0 and symbol == 'x':
-                    v.append(val)
-                else:
-                    args = reversed(v[-arity:])
-                    v[-arity:] = []
-                    v.append(fn(*args))
-            else:
-                v.append(symbol)
-
-        assert len(v) == 1 and not s
-        # print(s, v)
-        return v[0]
-
-    def fitness(stack, target_f=koza_poly, num_samples=20):
+    def fitness(stack):
         global size_d
         size_d[len(stack)] = size_d.get(len(stack), 0) + 1
 
-        assert count_missing(stack)[0] == 0
+        assert sutils.count_missing(stack)[0] == 0
         s = repr(stack)
 
         cres = cache.d.get(s, None)
         if cres is not None:
             return cres
 
-        samples = [-1 + 0.1 * i for i in range(num_samples)]
-        try:
-            error = 0
-            for val in samples:
-                fv = eval_stack(stack, val)
-                tv = target_f(val)
-                error += abs(fv - tv)
-            score = 1 / (1 + error)
-        except (OverflowError, ValueError):
-            score = 0.0
+        fun = lambda val: sutils.eval_stack(stack, {'x': val})
+        score = eval_regression(fun, koza_poly, 20)
 
         cache.update(s, score)
         return score
 
-    return finish, is_finished, successors, fitness, eval_stack, (lambda: len(cache)), cache
+    return sutils.finish, sutils.is_finished, sutils.successors, fitness, sutils.eval_stack, (lambda: len(cache)), cache
 
 
-def make_env_stack(max_size=5):
-    raw_finish, raw_is_finished, raw_successors, raw_fitness, raw_eval, count_evals, cache = regression_domain_koza_poly_stack()
+def make_env_stack(max_k=5, get_raw_domain=regression_domain_koza_stack, early_end_limit=1.0):
+    raw_finish, raw_is_finished, raw_successors, raw_fitness, raw_eval, count_evals, cache = get_raw_domain()
     env = Environment()
     env.count_evals = count_evals
     env.cache = cache
@@ -162,7 +67,7 @@ def make_env_stack(max_size=5):
 
     @utils.pp_function('early_end_test()')
     def early_end_test(score):
-        return score >= 1.0
+        return score >= early_end_limit
 
     @utils.pp_function('is_finished()')
     def is_finished(node):
@@ -173,12 +78,12 @@ def make_env_stack(max_size=5):
     def finish(node):
         assert isinstance(node, StackNode)
 
-        return StackNode(raw_finish(node.stack, max_size))
+        return StackNode(raw_finish(node.stack, max_k))
 
     @utils.pp_function('successors()')
     def successors(node):
         assert isinstance(node, StackNode)
-        return [StackNode(stack) for stack in raw_successors(node.stack, max_size)]
+        return [StackNode(stack) for stack in raw_successors(node.stack, max_k)]
 
     @utils.pp_function('advance()')
     def advance(node, finished_node):
@@ -208,7 +113,7 @@ def make_env_stack(max_size=5):
 
 
 if __name__ == "__main__":
-    finish, is_finished, successors, fitness, eval_stack, count_evals, cache = regression_domain_koza_poly_stack()
+    finish, is_finished, successors, fitness, eval_stack, count_evals, cache = regression_domain_koza_stack()
 
     for i in range(10000):
         s = ['plus', 'plus']

@@ -16,7 +16,7 @@ def domain_parity(SIZE):
     ALL = [(bits, reduce(xor, bits)) for bits in values]
 
     global_symbols = {
-        's_xor': lambda x: (lambda y: x ^ y),
+        #        's_xor': lambda x: (lambda y: x ^ y),
         's_and': lambda x: (lambda y: x and y),
         's_or': lambda x: (lambda y: x or y),
         's_nand': lambda x: (lambda y: not (x and y)),
@@ -27,12 +27,13 @@ def domain_parity(SIZE):
     goal = parse_typ(R)
     vars = ['b%d' % i for i in range(SIZE)]
     var_str = ','.join(vars)
-    stuff = [('s_xor', (R, '->', (R, '->', R))),
-             ('s_and', (R, '->', (R, '->', R))),
-             ('s_or', (R, '->', (R, '->', R))),
-             ('s_nor', (R, '->', (R, '->', R))),
-             ('s_nand', (R, '->', (R, '->', R))),
-             ] + [(v, R) for v in vars]
+    stuff = [
+                # ('s_xor', (R, '->', (R, '->', R))),
+                ('s_and', (R, '->', (R, '->', R))),
+                ('s_or', (R, '->', (R, '->', R))),
+                ('s_nor', (R, '->', (R, '->', R))),
+                ('s_nand', (R, '->', (R, '->', R))),
+            ] + [(v, R) for v in vars]
 
     gamma = parse_ctx(OrderedDict(stuff))
     cache = FitnessCache()

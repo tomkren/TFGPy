@@ -4,6 +4,7 @@ import time
 
 import domain_koza_apptree
 import domain_koza_stack
+import domain_parity_stack
 from app_tree import UnfinishedLeaf
 import domain_koza_apptree
 import domain_koza_stack
@@ -78,8 +79,12 @@ if __name__ == "__main__":
             assert False
         make_env = domain.make_env_app_tree
     elif args.stack:
-        assert args.domain == 'koza_poly'
-        domain = domain_koza_stack
+        if args.domain == D_KOZA_POLY:
+            domain = domain_koza_stack
+        elif args.domain == D_PARITY:
+            domain = domain_parity_stack
+        else:
+            assert False
         make_env = lambda: domain.make_env_stack(args.k)
     else:
         assert False
