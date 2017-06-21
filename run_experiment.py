@@ -4,12 +4,10 @@ import time
 
 import domain_koza_apptree
 import domain_koza_stack
-import domain_parity_stack
-from app_tree import UnfinishedLeaf
-import domain_koza_apptree
-import domain_koza_stack
 import domain_parity_apptree
+import domain_parity_stack
 import domain_primes_apptree
+from app_tree import UnfinishedLeaf
 from mcts import MCTNode, mct_search, C_UCT_EXPLORE_DEFAULT
 from nmcs import nested_mc_search
 from tree_node import ChooseKTNode, StackNode, UFTNode, MaxKTNode

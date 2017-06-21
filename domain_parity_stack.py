@@ -24,7 +24,7 @@ def domain_parity_stack(SIZE=6):
         raise RuntimeError()
 
     symbols_d = {
-        's_xor': (2, lambda x, y: x ^ y),
+        #'s_xor': (2, lambda x, y: x ^ y),
         's_and': (2, lambda x, y: x and y),
         's_or': (2, lambda x, y: x or y),
         's_nand': (2, lambda x, y: not (x and y)),
@@ -63,7 +63,8 @@ def domain_parity_stack(SIZE=6):
 
 
 def make_env_stack(max_k=5, SIZE=6):
-    return domain_koza_stack.make_env_stack(get_raw_domain=lambda: domain_parity_stack(SIZE),
+    return domain_koza_stack.make_env_stack(max_k=max_k,
+                                            get_raw_domain=lambda: domain_parity_stack(SIZE),
                                             early_end_limit=2 ** SIZE)
 
 

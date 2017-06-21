@@ -97,9 +97,6 @@ def mct_descend(node, expand_visits, successors, is_finished, sample_by_urgency,
             node = max(children,
                        key=lambda child_node: child_node.urgency(node.visits, urgency_method, urgency_c_uct_explore))
         else:
-            # JM: this is probably worse
-            # tested on Koza's polynomial domain with
-            # 200 repetitions of MCTS with 1000 playouts
             children = nodes[-1].children
             urgencies = [child_node.urgency(node.visits) for child_node in children]
             node = utils.sample_by_scores(children, urgencies)
