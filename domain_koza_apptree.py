@@ -31,6 +31,22 @@ def eval_regression(fun, target_f, num_samples=20):
     return score
 
 
+def d():
+    R = 'R'
+    return (parse_typ(R),
+            parse_ctx(OrderedDict([
+                ('plus', (R, '->', (R, '->', R))),
+                ('minus', (R, '->', (R, '->', R))),
+                ('times', (R, '->', (R, '->', R))),
+                ('rdiv', (R, '->', (R, '->', R))),
+                ('sin', (R, '->', R)),
+                ('cos', (R, '->', R)),
+                ('exp', (R, '->', R)),
+                ('rlog', (R, '->', R)),
+                ('x', R),
+            ])), 20)
+
+
 def regression_domain_koza():
     global_symbols = {
         'plus': lambda x: (lambda y: x + y),
@@ -43,20 +59,7 @@ def regression_domain_koza():
         'exp': math.exp,
     }
 
-    R = 'R'
-    goal = parse_typ(R)
-    gamma = parse_ctx(OrderedDict([
-        ('plus', (R, '->', (R, '->', R))),
-        ('minus', (R, '->', (R, '->', R))),
-        ('times', (R, '->', (R, '->', R))),
-        ('rdiv', (R, '->', (R, '->', R))),
-        ('sin', (R, '->', R)),
-        ('cos', (R, '->', R)),
-        ('exp', (R, '->', R)),
-        ('rlog', (R, '->', R)),
-        ('x', R),
-    ]))
-
+    goal, gamma = d()
     cache = FitnessCache()
 
     def fitness(individual_app_tree):
