@@ -58,6 +58,9 @@ class Typ:
     def apply_sub(self, sub):
         raise NotImplementedError
 
+    def apply_sub_fun(self, sub_fun):
+        raise NotImplementedError
+
     def skolemize(self):
         acc = {}
         skolemized = self._skolemize_acc(acc)
@@ -88,6 +91,10 @@ class TypVar(Typ):
     def __repr__(self):
         return "TypVar(%s)" % (repr(self.name))
 
+    # TODO udělat pořádně jako eq je pořádně !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    def __lt__(self, other):
+        return str(self.name) < str(other.name)
+
     def gather_leaves(self, pred, make_new):
         if pred(self):
             return make_new(self)
@@ -110,6 +117,9 @@ class TypVar(Typ):
         if self in sub.table:
             return sub.table[self]
         return self
+
+    def apply_sub_fun(self, sub_fun):
+        return sub_fun(self)
 
     def __str__(self):
         return "$%s" % self.name
@@ -156,6 +166,9 @@ class TypSymbol(Typ):
     def apply_sub(self, sub):
         return self
 
+    def apply_sub_fun(self, sub_fun):
+        return self
+
     def _skolemize_acc(self, acc):
         return self
 
@@ -172,6 +185,9 @@ class TypSkolem(TypSymbol):
             return sub.table[self]
         return self
 
+    def apply_sub_fun(self, sub_fun):
+        return sub_fun(self)
+
     def get_next_var_id(self, acc=0):
         if isinstance(self.name, int):
             return max(acc, self.name + 1)
@@ -182,7 +198,6 @@ T_ARROW = TypSymbol('->')
 
 T_INTERNAL_PAIR = TypSymbol('_P_')
 INTERNAL_PAIR_CONSTRUCTOR_SYM = '_p_'
-
 
 
 class TypTerm(Typ):
@@ -262,6 +277,14 @@ class TypTerm(Typ):
                 return TypTerm(children)
         return self
 
+    def apply_sub_fun(self, sub_fun):
+        # TODO measure speedup
+        children = tuple(a.apply_sub_fun(sub_fun) for a in self.arguments)
+        for c, a in zip(children, self.arguments):
+            if id(c) != id(a):
+                return TypTerm(children)
+        return self
+
     def _skolemize_acc(self, acc):
         # TODO if apply_sub is more efficient with id checks => apply it here as well
         return TypTerm(tuple(a._skolemize_acc(acc) for a in self.arguments))
@@ -285,7 +308,6 @@ def fresh(t_fresh: Typ, t_avoid: Typ, n):
 
 def new_var(typ: Typ, n):
     n1 = typ.get_next_var_id(n)
-
     return TypVar(n1), n1 + 1
 
 

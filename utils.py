@@ -49,10 +49,11 @@ def construct_bijection(tab):
     return table, rev_table
 
 
-def make_enum_table(iterable, make_new):
-    table = {}
+def make_enum_table(iterable, make_new, delta=0, table=None):
+    if table is None:
+        table = {}
     for num, val in enumerate(iterable):
-        table[val] = make_new(num)
+        table[val] = make_new(num + delta)
     return table
 
 

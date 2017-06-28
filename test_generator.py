@@ -35,6 +35,31 @@ def d1():
             4)
 
 
+def d_general_even_parity():
+    return (parse_typ('Bool'),
+            parse_ctx(OrderedDict([
+
+                ('xs', ('List', 'Bool')),
+
+                ("s", (("a", "->", ("b", "->", "c")), '->', (("a", "->", "b"), "->", ("a", "->", "c")))),
+                ("k", ("a", "->", ("b", "->", "a"))),
+
+                ("and",  ('Bool', '->', ('Bool', '->', 'Bool'))),
+                ("or",   ('Bool', '->', ('Bool', '->', 'Bool'))),
+                ("nand", ('Bool', '->', ('Bool', '->', 'Bool'))),
+                ("nor",  ('Bool', '->', ('Bool', '->', 'Bool'))),
+
+                ('foldr', (('a', '->', ('b', '->', 'b')), '->', ('b', '->', (('List', 'a'), '->', 'b')))),
+
+                ('true', 'Bool'),
+                ('false', 'Bool')
+
+                # ("head", (('List', 'Bool'), '->', ('Maybe', 'Bool'))),
+                # ("tail", (('List', 'Bool'), '->', ('Maybe', ('List', 'Bool')))),
+            ])),
+            5)
+
+
 def d2():
     return (parse_typ('B'),
             parse_ctx(OrderedDict([
@@ -57,7 +82,7 @@ def d3():
 
 class TestGen(unittest.TestCase):
     def test_d(self):
-        for goal, gamma, max_k in [d1(), d2(), d3()]:
+        for goal, gamma, max_k in [d_general_even_parity(), d1(), d2(), d3()]:
             g = Generator(gamma, normalizator=normalization.NormalizatorNop)
             gnf = Generator(gamma, normalizator=normalization.Normalizator)
             gNC = Generator(gamma, normalizator=normalization.NormalizatorNop, cache=CacheNop)
@@ -76,6 +101,7 @@ class TestGen(unittest.TestCase):
                 g_num = g.get_num(k, goal)
                 self.assertEqual(s_num, g_num)
                 res.append(g_num)
+                print(g_num)
 
                 # check generator in nf
                 self.assertEqual(s_num, gnf.get_num(k, goal))
@@ -105,7 +131,7 @@ class TestGen(unittest.TestCase):
         check_skeletons(self)
 
 
-IS_LOG_PRINTING = False
+IS_LOG_PRINTING = not False
 
 
 def log(*args):
@@ -120,7 +146,7 @@ def check_skeletons(tester):
         log('goal:', goal)
         # gamma.add_internal_pair() # todo uplne smazat až bude fungovat
         g = Generator(gamma)
-        for k in range(1, max_k):
+        for k in range(1, max_k+1):
             log(' k:', k)
             check_successors(tester, g, k, goal)
 
@@ -255,12 +281,14 @@ def separate_error_ip_new():
 
     # print(next_skels)
 
+
 if __name__ == "__main__":
     if True:
-        # unittest.main()
+        unittest.main()
         # separate_error_ip_new()
-        separate_error_404()
+        # separate_error_404()
         # separate_error_404_sub()
+
     else:
 
         # seed = random.randint(0, sys.maxsize)

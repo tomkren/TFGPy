@@ -61,7 +61,7 @@ class Generator:
         return "Generator(...)"
 
     def get_num(self, k, typ):
-        nf = self.normalizator(typ)
+        nf = self.normalizator(typ, 0)
         return self.cache.get_num(k, nf.typ_nf)
 
     def get_num_uf(self, uf_tree, k, typ):
@@ -130,11 +130,9 @@ class Generator:
         # ret_pp=lambda results: "\n".join("NUM=%d\tN=%d\n%s" % (r.num, r.n, r.sub) for r in results))
 
     def subs(self, k, typ, n):
-        nf = self.normalizator(typ)
-        results_nf = self.cache.subs(k, nf.typ_nf, n)
-        ret = nf.denormalize(results_nf, n)
-
-        return ret
+        nf = self.normalizator(typ, n)
+        results_nf = self.cache.subs(k, nf.typ_nf, nf.n_nf)
+        return nf.denormalize(results_nf)
 
     def subs_uf_smart(self, uf_tree, k, n):
 
@@ -187,6 +185,8 @@ class Generator:
                 ret.extend(self.subs_ij(i, k - i, typ, n))
 
         return pack(typ, n, ret)
+
+    # == GEN ONE ===============================================================================
 
     def gen_one(self, k, typ):
         ret = self.gen_one_random(k, typ, 0)
@@ -253,11 +253,11 @@ class Generator:
     def gen_one_raw(self, ball, k, typ, n):
         assert k >= 1
 
-        nf = self.normalizator(typ)
+        nf = self.normalizator(typ, n)
         if k == 1:
-            tree, n1 = self.gen_one_leaf(ball, nf.typ_nf, n)
+            tree, n1 = self.gen_one_leaf(ball, nf.typ_nf, nf.n_nf)
         else:
-            tree, n1 = self.gen_one_app(ball, k, nf.typ_nf, n)
+            tree, n1 = self.gen_one_app(ball, k, nf.typ_nf, nf.n_nf)
 
         # TODO denormalize n1 as well
         return nf.denormalize_tree(tree), n1
@@ -339,7 +339,8 @@ class Generator:
         typ_as, deskolem_sub_a = res_a.sub(typ_a).skolemize()
         typ_bs, deskolem_sub_b = res_b.sub(typ_b).skolemize()
 
-        s_tree_a, n = self.gen_one_random(i_without_cons, typ_as, res_a.n)
+        n = res_a.n
+        s_tree_a, n = self.gen_one_random(i_without_cons, typ_as, n)
         s_tree_b, n = self.gen_one_random(j, typ_bs, n)
 
         assert s_tree_a is not None
@@ -374,7 +375,8 @@ class Generator:
         typ_fs, deskolem_sub_f = res_f.sub(typ_f).skolemize()
         typ_xs, deskolem_sub_x = res_x.sub(typ_x).skolemize()
 
-        s_tree_f, n = self.gen_one_random(i, typ_fs, res_x.n)
+        n = res_x.n
+        s_tree_f, n = self.gen_one_random(i, typ_fs, n)
         s_tree_x, n = self.gen_one_random(j, typ_xs, n)
 
         assert s_tree_f is not None
