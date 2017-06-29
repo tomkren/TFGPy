@@ -82,7 +82,6 @@ class Generator:
 
         ret = []
         typ_a, typ_b_0 = TypTerm.split_internal_pair_typ(typ)
-
         n = typ_b_0.get_next_var_id(n)
 
         for res_a in self.subs(i_without_cons, typ_a, n):
@@ -218,9 +217,7 @@ class Generator:
             hax_k = real_k + num_uf_leafs-1
             hax_tree = self.gen_one(hax_k, hax_typ)
             hax_subtrees = split_internal_tuple(hax_tree)
-            # assert len(uf_leafs) == len(hax_subtrees)
-            if len(uf_leafs) != len(hax_subtrees):
-                assert False
+            assert len(uf_leafs) == len(hax_subtrees)
             tree, sigma = uf_tree.replace_unfinished_leafs(hax_subtrees)
 
             if not tree.is_well_typed(self.gamma):
@@ -301,6 +298,7 @@ class Generator:
     def gen_one_internal_pair(self, ball, k, typ, n):
 
         typ_a, typ_b_0 = TypTerm.split_internal_pair_typ(typ)
+        n = typ_b_0.get_next_var_id(n)
 
         for i in range(1, k):
             j = k - i
@@ -349,8 +347,7 @@ class Generator:
         assert s_tree_b is not None
 
         assert s_tree_a.is_well_typed(self.gamma)
-        if not s_tree_b.is_well_typed(self.gamma):
-            assert False
+        assert s_tree_b.is_well_typed(self.gamma)
 
         tree_a = s_tree_a.apply_sub(sub.dot(res_b.sub, deskolem_sub_a))
         tree_b = s_tree_b.apply_sub(deskolem_sub_b)
