@@ -83,6 +83,8 @@ class Generator:
         ret = []
         typ_a, typ_b_0 = TypTerm.split_internal_pair_typ(typ)
 
+        n = typ_b_0.get_next_var_id(n)
+
         for res_a in self.subs(i_without_cons, typ_a, n):
             typ_b = res_a.sub(typ_b_0)
             for res_b in self.subs(j, typ_b, res_a.n):

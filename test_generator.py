@@ -134,6 +134,11 @@ class TestGen(unittest.TestCase):
 IS_LOG_PRINTING = not False
 
 
+def set_log_printing(new_val=True):
+    global IS_LOG_PRINTING
+    IS_LOG_PRINTING = new_val
+
+
 def log(*args):
     if IS_LOG_PRINTING:
         print(*args)
@@ -267,13 +272,12 @@ def separate_error_404_sub():
 
 
 def separate_error_ip_new():
-    goal, gamma, max_k = d2()
+    goal, gamma, max_k = d3()
     gene = Generator(gamma)
     k = 2
     skel = UnfinishedLeaf(goal)
 
-    global IS_LOG_PRINTING
-    IS_LOG_PRINTING = True
+    set_log_printing(True)
 
     t = time.time()
     next_skels = skel.successors_smart(gene, k)
@@ -282,12 +286,59 @@ def separate_error_ip_new():
     # print(next_skels)
 
 
+def separate_error_bad_smart_expansion_2017_02_28():
+    print('Separating error: bad_expansion_2017_02_28')
+    problem_goal, problem_gamma, _ = d3()
+    gene = Generator(problem_gamma)
+    problem_k = 5
+    skel_0 = UnfinishedLeaf(problem_goal)
+
+    set_log_printing(True)
+
+    def succ(sk, path=None, is_smart=True, goal_typ=None):
+        t = time.time()
+        if is_smart:
+            next_sks = sk.successors_smart(gene, problem_k)
+        else:
+            next_sks = sk.successors(gene, problem_k, goal_typ)
+        log_expansion(sk, next_sks, t)
+        if not path:
+            return next_sks
+        else:
+            i = path[0]
+            path = path[1:]
+            next_one = next_sks[i]
+            print('  i=', i, 'selected:', next_one)
+            return succ(next_one, path, is_smart, goal_typ) if path else next_one
+
+    bug_path_1 = [0, 0, 0, 2, 0, 0]  # (((k (? ?)) ?) ?)
+    bug_path_2 = [0, 0, 0, 2, 0, 0]
+
+    skel = succ(skel_0, bug_path_1, False, problem_goal)
+    print(skel)
+    print()
+
+    seed = 42
+    random.seed(seed)
+    print('seed:', seed)
+    tree = gene.gen_one_uf(skel, problem_k, problem_goal)
+    log(str(tree))
+    log('is_well_typed:', tree.is_well_typed(gene.gamma))
+
+    print()
+
+    skel = succ(skel_0, bug_path_2)
+    print(skel)
+    print()
+
+
 if __name__ == "__main__":
     if True:
         unittest.main()
         # separate_error_ip_new()
         # separate_error_404()
         # separate_error_404_sub()
+        # separate_error_bad_smart_expansion_2017_02_28()
 
     else:
 
