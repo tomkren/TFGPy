@@ -52,10 +52,11 @@ def pack(typ, n, pre_sub_results):
 
 
 class Generator:
-    def __init__(self, gamma, cache=Cache, normalizator=Normalizator):
+    def __init__(self, gamma, cache=Cache, normalizator=Normalizator, cache_subproducts=False):
         self.gamma = gamma
         self.cache = cache(self)
         self.normalizator = normalizator
+        self.cache_subproducts = cache_subproducts
 
     def __str__(self):
         return "Generator(...)"
@@ -74,6 +75,52 @@ class Generator:
         pre_ts1_res = ts1_static(self.gamma, typ, n)
         return Mover.move_pre_ts1_results(typ, n, pre_ts1_res)
 
+    # == SUBS ====================================================================================
+
+    # toto je náhrada za subs_internal_pair
+    def subs_product(self, k, typ, n):
+        assert TypTerm.is_internal_pair_typ(typ)
+        assert k >= 1
+        if k == 1:
+            return []
+
+        ret = []
+        typ_a, typ_b_0 = TypTerm.split_internal_pair_typ(typ)
+        n = typ_b_0.get_next_var_id(n) # todo zvážit jestli rači nepocitat z celýho typu
+
+        for i in range(2, k):
+            j = k - i
+            i_without_cons = i - 1
+            assert i_without_cons > 0
+
+            results_a = self.subs(i_without_cons, typ_a, n)
+            for res_a in results_a:
+
+                typ_b = res_a.sub(typ_b_0)
+                n = res_a.n
+
+                results_b = self.recursive_subs_call_for_product_tail(j, typ_b, n)
+                for res_b in results_b:
+
+                    num_ab = res_b.num * res_a.num
+                    sigma_ab = sub.dot(res_b.sub, res_a.sub).restrict(typ)
+                    ret.append(sub.PreSubRes(num_ab, sigma_ab))
+
+        return pack(typ, n, ret)
+
+    # Here is made the decision about that sub-product results are not stored in cache
+    def recursive_subs_call_for_product_tail(self, j, typ_b, n):
+        if TypTerm.is_internal_pair_typ(typ_b):
+            if self.cache_subproducts:
+                return self.subs(j, typ_b, n)
+            else:
+                # Ensures that intermediate sub-product results are not stored in cache
+                return self.subs_product(j, typ_b, n)
+        else:
+            # typ_b is the last element of the whole product
+            return self.subs(j, typ_b, n)
+
+    # todo pak smazat, má nahradit subs_product
     def subs_internal_pair(self, i, j, typ, n):
 
         i_without_cons = i - 1
@@ -96,8 +143,10 @@ class Generator:
 
     def subs_ij(self, i, j, typ, n):
 
-        if TypTerm.is_internal_pair_typ(typ):
-            return self.subs_internal_pair(i, j, typ, n)
+        # todo potvrdit ze funguje
+        # tady se da zapnout stara implementace productu (nahrazeno pomoci subs_product volaneho v subs_compute)
+        # if TypTerm.is_internal_pair_typ(typ):
+        #    return self.subs_internal_pair(i, j, typ, n)
 
         ret = []
         alpha, n1 = new_var(typ, n)
@@ -127,8 +176,8 @@ class Generator:
 
         return ret
 
-        # @tracer_deco(log_ret=True,
-        # ret_pp=lambda results: "\n".join("NUM=%d\tN=%d\n%s" % (r.num, r.n, r.sub) for r in results))
+    # @tracer_deco(log_ret=True,
+    # ret_pp=lambda results: "\n".join("NUM=%d\tN=%d\n%s" % (r.num, r.n, r.sub) for r in results))
 
     def subs(self, k, typ, n):
         nf = self.normalizator(typ, n)
@@ -178,6 +227,12 @@ class Generator:
     # @tracer_deco()
     def subs_compute(self, k, typ, n):
         assert k >= 1
+
+        # todo potvrdit ze funguje
+        # zakomentovanim se přepne na starou implementaci produktů (potřeba odkom v subs_ij)
+        if TypTerm.is_internal_pair_typ(typ):
+            return self.subs_product(k, typ, n)
+
         if k == 1:
             ret = (PreSubRes(1, res.sub) for res in self.cache.ts_1(typ, n))
         else:
@@ -251,12 +306,16 @@ class Generator:
 
     def gen_one_raw(self, ball, k, typ, n):
         assert k >= 1
-
         nf = self.normalizator(typ, n)
-        if k == 1:
-            tree, n1 = self.gen_one_leaf(ball, nf.typ_nf, nf.n_nf)
+
+        # todo potvrdit ze funguje
+        if TypTerm.is_internal_pair_typ(nf.typ_nf):
+            tree, n1 = self.gen_one_product(ball, k, nf.typ_nf, nf.n_nf)
         else:
-            tree, n1 = self.gen_one_app(ball, k, nf.typ_nf, nf.n_nf)
+            if k == 1:
+                tree, n1 = self.gen_one_leaf(ball, nf.typ_nf, nf.n_nf)
+            else:
+                tree, n1 = self.gen_one_app(ball, k, nf.typ_nf, nf.n_nf)
 
         # TODO denormalize n1 as well
         return nf.denormalize_tree(tree), n1
@@ -295,6 +354,36 @@ class Generator:
 
         return Leaf(uf_tree.sym, mu(typ)), f.n
 
+    # todo potom volat vejš, ted zatim nevoláno...
+    def gen_one_product(self, ball, k, typ, n):
+        assert TypTerm.is_internal_pair_typ(typ)
+        assert k > 1
+
+        typ_a, typ_b_0 = TypTerm.split_internal_pair_typ(typ)
+        n = typ_b_0.get_next_var_id(n)
+
+        for i in range(2, k):
+            j = k - i
+            i_without_cons = i - 1
+            assert i_without_cons > 0
+
+            results_a = self.subs(i_without_cons, typ_a, n)
+            for res_a in results_a:
+
+                typ_b = res_a.sub(typ_b_0)
+                n = res_a.n
+
+                results_b = self.recursive_subs_call_for_product_tail(j, typ_b, n)
+                for res_b in results_b:
+
+                    num_ab = res_b.num * res_a.num
+                    if ball < num_ab:
+                        return self.gen_one_internal_pair_core(i_without_cons, j, typ, typ_a, typ_b, res_a, res_b)
+                    ball -= num_ab
+
+        assert False
+
+    # todo pak smazat, má nahradit gen_one_product
     def gen_one_internal_pair(self, ball, k, typ, n):
 
         typ_a, typ_b_0 = TypTerm.split_internal_pair_typ(typ)
@@ -318,8 +407,10 @@ class Generator:
 
     def gen_one_app(self, ball, k, typ, n):
 
-        if TypTerm.is_internal_pair_typ(typ):
-            return self.gen_one_internal_pair(ball, k, typ, n)
+        # todo potvrdit zefunguje
+        # Tady se da zapnout stara implementace (nahrazeno momoci gen_one_product)
+        # if TypTerm.is_internal_pair_typ(typ):
+        #     return self.gen_one_internal_pair(ball, k, typ, n)
 
         alpha, n1 = new_var(typ, n)
         typ_f = TypTerm.make_arrow(alpha, typ)
