@@ -2,6 +2,7 @@ import math
 import multiprocessing
 import random
 import sys
+import time
 
 
 def update_union(iterable, acc):
@@ -91,7 +92,7 @@ def worker_run_with_env(fc):
     return fc(worker_env)
 
 
-def experiment_eval(one_iteration, make_env, repeat=10, processes=1):
+def experiment_eval(one_iteration, make_env, repeat=10, processes=1, print_dots=False):
     if processes <= 0:
         processes = multiprocessing.cpu_count()
 
@@ -105,22 +106,32 @@ def experiment_eval(one_iteration, make_env, repeat=10, processes=1):
 
     pool = multiprocessing.Pool(processes=processes, initializer=make_worker_env)
 
+    imap = map
+    if processes > 1 and repeat > 1:
+        imap = pool.imap_unordered
+    else:
+        make_worker_env()
+
     scores = []
     times = []
     total_num_evals = 0
     try:
-        for score, num_evals, time_spent in pool.imap_unordered(worker_run_with_env, (one_iteration for _ in range(repeat))):
-            print('.', end='', flush=True)
+        for score, num_evals, time_spent in imap(worker_run_with_env, (one_iteration for _ in range(repeat))):
+            if print_dots:
+                print('.', end='', flush=True)
             scores.append(score)
             times.append(time_spent)
             total_num_evals += num_evals
     finally:
-        print()
-        print("score\t", end='')
-        print_it_stats(scores)
-        print("time\t", end='')
-        print_it_stats(times, flush=True)
-        print("%d total evals" % total_num_evals)
+        time.sleep(0.1)
+        if scores:
+            print()
+            print("score\t", end='')
+            print_it_stats(scores, flush=True)
+        if times:
+            print("time\t", end='')
+            print_it_stats(times, flush=True)
+            print("%d total evals" % total_num_evals)
 
     return scores
 

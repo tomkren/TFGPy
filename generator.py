@@ -286,6 +286,18 @@ class Generator:
         else:
             return None
 
+    def gen_one_uf_up_to(self, uf_tree, max_k, typ):
+        min_k = uf_tree.count_min_k()
+        candidate_ks = list(range(min_k, max_k + 1))
+        random.shuffle(candidate_ks)
+
+        while candidate_ks:
+            k = candidate_ks.pop()
+            ret = self.gen_one_random_uf(uf_tree, k, typ, 0)
+            if ret is not None:
+                return ret[0], k
+        return None
+
     def gen_one_uf(self, uf_tree, k, typ):
         ret = self.gen_one_random_uf(uf_tree, k, typ, 0)
         if ret is None:

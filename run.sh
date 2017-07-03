@@ -1,11 +1,15 @@
 #!/bin/sh
 
-python3 test_norm.py > LOG
+PROC=4
+REPEAT=10
+K=5
 
-rm .LOG_nop.swp
-rm .LOG_nf.swp
+for LEVEL in 2 3 ; do
+    for DOMAIN in 'stack' 'app-tree' ; do
 
-cat LOG | sed -n '/NOP/,/NOPEND/p' > LOG_nop
-cat LOG | sed -n '/NF/,/NFEND/p' > LOG_nf
-
-#gvim -O LOG_nop LOG_nf
+        date  >> LOG_run.sh
+        echo $LEVEL $DOMAIN  >> LOG_run.sh
+        ./run_experiment.py "--k=$K" "--proc=$PROC" "--repeat=$REPEAT" "--${DOMAIN}" --nmcs "--nmcs-level=$LEVEL"  | tee "LOG_${DOMAIN}_nmcs_level_$LEVEL"
+    done
+done
+date  >> LOG_run.sh

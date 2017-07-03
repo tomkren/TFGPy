@@ -9,6 +9,7 @@ import normalization
 import typ
 from app_tree import UnfinishedLeaf
 from cache import Cache, CacheNop
+from domain_fparity_apptree import d_general_even_parity
 from normalization import Normalizator, NormalizatorNop
 from generator import Generator
 from generator_static import ts, get_num
@@ -24,8 +25,7 @@ def d1():
                        (("a", "->", "b"), "->", ("a", "->", "c")))),
                 ("k", ("a", "->", ("b", "->", "a"))),
                 ("seri", (("Dag", 'a', 'b'), '->', (("Dag", 'b', 'c'), '->', ("Dag", 'a', 'c')))),
-                ("para",
-                 (("Dag", 'a', 'b'), '->', (("Dag", 'c', 'd'), '->', ("Dag", ('P', 'a', 'c'), ('P', 'b', 'd'))))),
+                ("para", (("Dag", 'a', 'b'), '->', (("Dag", 'c', 'd'), '->', ("Dag", ('P', 'a', 'c'), ('P', 'b', 'd'))))),
                 ("mkDag", (("a", "->", "b"), '->', ("Dag", "a", "b"))),
                 ("deDag", (("Dag", "a", "b"), '->', ("a", "->", "b"),)),
                 ("mkP", ("a", "->", ("b", "->", ('P', "a", 'b')))),
@@ -35,7 +35,7 @@ def d1():
             4)
 
 
-def d_general_even_parity():
+def d_general_even_parity_sk():
     return (parse_typ('Bool'),
             parse_ctx(OrderedDict([
 
@@ -81,6 +81,14 @@ def d3():
 
 
 class TestGen(unittest.TestCase):
+    def test_d2(self):
+        for goal, gamma, max_k in [d_general_even_parity()]:#d1(), d2(), d3()]:
+            g = Generator(gamma, normalizator=normalization.Normalizator)
+
+            for k in range(1, max_k + 1):
+                g_num = g.get_num(k, goal)
+                print(g_num)
+
     def test_d(self):
         for goal, gamma, max_k in [d_general_even_parity(), d1(), d2(), d3()]:
             g = Generator(gamma, normalizator=normalization.NormalizatorNop)
@@ -131,7 +139,7 @@ class TestGen(unittest.TestCase):
         check_skeletons(self)
 
 
-IS_LOG_PRINTING = not False
+IS_LOG_PRINTING = False
 
 
 def set_log_printing(new_val=True):
