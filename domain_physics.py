@@ -112,10 +112,12 @@ def test_domain(domain_maker, max_k=42, show_examples=True, skip_zeros=True):
     num_up_to_optimal_size = 0
     num_up_to_twice_optimal_size = 0
 
-    print('k \t num \t\t', 'example_tree' if show_examples else '')
+    print('k \t time \t num \t\t', 'example_tree' if show_examples else '')
     print('-'*(80 if show_examples else 40))
     for k in range(1, max_k+1):
+        t = time()
         num = gen.get_num(k, goal)
+        dt = time() - t
 
         comment = ''
         if k % optimal_size == 0:
@@ -124,7 +126,7 @@ def test_domain(domain_maker, max_k=42, show_examples=True, skip_zeros=True):
 
         if num > 0 or comment != '' or not skip_zeros:
 
-            print(k, comment, '\t', num, end='')
+            print(k, comment, '\t', ('%.2f' % dt), '\t', num, end='')
 
             if k <= optimal_size:
                 num_up_to_optimal_size += num
