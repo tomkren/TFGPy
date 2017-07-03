@@ -3,6 +3,11 @@ import multiprocessing
 import random
 import sys
 import time
+from functools import reduce
+
+
+def foldr(f, acc, xs):
+    return reduce(lambda x, y: f(y, x), xs[::-1], acc)
 
 
 def update_union(iterable, acc):
