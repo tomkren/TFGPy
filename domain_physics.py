@@ -39,7 +39,7 @@ def make_simple_motion_domain():
     return goal, gamma, optimal_size
 
 
-def make_motion_domain():
+def make_smart_motion_domain():
 
     m, s, m1, m2, s1, s2 = map(parse_typ, ('m', 's', 'm1', 'm2', 's1', 's2'))
     u_ms = U(m, s)
@@ -116,8 +116,15 @@ def test_domain(domain_maker, max_k=42, show_examples=True, skip_zeros=True):
     print('-'*(80 if show_examples else 40))
     for k in range(1, max_k+1):
         num = gen.get_num(k, goal)
-        if num > 0 or not skip_zeros:
-            print(k, ('OPT' if k == optimal_size else ''), '\t', num, end='')
+
+        comment = ''
+        if k % optimal_size == 0:
+            factor = k // optimal_size
+            comment = (str(factor) if factor > 1 else '') + 'OPT'
+
+        if num > 0 or comment != '' or not skip_zeros:
+
+            print(k, comment, '\t', num, end='')
 
             if k <= optimal_size:
                 num_up_to_optimal_size += num
@@ -131,19 +138,33 @@ def test_domain(domain_maker, max_k=42, show_examples=True, skip_zeros=True):
             else:
                 print()
 
+    delta_time = time() - start_time
+
     print()
     print('num_up_to_optimal_size :', num_up_to_optimal_size)
     print('num_up_to_twice_optimal_size :', num_up_to_twice_optimal_size)
     print()
-    print('It took', time() - start_time, 'seconds.')
+    print('It took', delta_time, 'seconds.')
     print('='*80, '\n\n')
+
+    return delta_time, num_up_to_optimal_size, num_up_to_twice_optimal_size
 
 
 def test_domains():
-    opts = {'max_k': 60, 'show_examples': False, 'skip_zeros': True}
-    test_domain(make_simple_motion_domain, **opts)
-    test_domain(make_motion_domain, **opts)
+    opts = {'max_k': 58, 'show_examples': False, 'skip_zeros': True}
+    time_simple, ut1opt_simple, ut2opt_simple = test_domain(make_simple_motion_domain, **opts)
+    time_smart, ut1opt_smart, ut2opt_smart = test_domain(make_smart_motion_domain, **opts)
 
+    time_ratio = time_simple / time_smart
+    up_to_opt_ratio = ut1opt_simple / ut1opt_smart
+    up_to_2opt_ratio = ut2opt_simple / ut2opt_smart
+
+    print('\n== RESULT STATS', '='*64)
+    print('time_ratio:\t', time_ratio)
+    print('up_to_opt_ratio:\t', up_to_opt_ratio)
+    print('up_to_2opt_ratio:\t', up_to_2opt_ratio)
+
+    return time_ratio, up_to_opt_ratio, up_to_2opt_ratio
 
 if __name__ == '__main__':
     test_domains()
