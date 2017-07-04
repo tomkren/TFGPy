@@ -3,12 +3,9 @@ from time import time
 
 from utils import foldr
 from parsers import parse_typ, parse_ctx
+from app_tree import AppTree
 from typ import TypTerm
 from generator import Generator
-
-
-def U(*args):
-    return parse_typ(('U',) + args)
 
 
 def fun_typ(arg_typs, result_typ):
@@ -17,34 +14,127 @@ def fun_typ(arg_typs, result_typ):
     return foldr(f, result_typ, arg_typs)
 
 
-def make_simple_motion_domain():
+x0_sym = 'x0'
+v0_sym = 'v0'
+t_sym = 't'
+a_sym = 'a'
+half_sym = '0.5'
+plus_sym = 'plus'
+times_sym = 'times'
+times_smart_sym = 'tms'
+pair_sym = 'pair'
+
+motion_lambda_head = (x0_sym, v0_sym, a_sym, t_sym)
+
+P = parse_typ('P')
+pair_cons_typ = fun_typ(('a', 'b'), (P, 'a', 'b'))
+
+physics_lib_defs = {
+    plus_sym: lambda x: (lambda y: x + y),
+    times_sym: lambda x: (lambda y: x * y),
+    times_smart_sym: lambda _: (lambda _: (lambda x: (lambda y: x * y))),
+    pair_sym: lambda x: (lambda y: (x,y))
+}
+
+# print(physics_lib_defs[plus_sym](2)(8))
+
+
+def compile_tree(lib_defs, lambda_head, tree):
+    code_str = 'lambda %s : %s' % (','.join(lambda_head), tree.eval_str())
+    return eval(code_str, lib_defs)
+
+
+def make_samples(begin, end, num_vals):
+    delta = end - begin
+    step = delta / (num_vals - 1)
+    return [begin + i * step for i in range(num_vals)]
+
+
+def make_tuple_samples(tuple_len, begin, end, num_vals):
+    if tuple_len == 0:
+        return [()]
+    ret = []
+    for v in make_tuple_samples(tuple_len-1, begin, end, num_vals):
+        for sample in make_samples(begin, end, num_vals):
+            v_new = (*v, sample)
+            ret.append(v_new)
+    return ret
+
+
+def motion_model(x0, v0, a, t):
+    return x0 + v0*t + 0.5*a*t*t, v0 + a*t
+
+
+def fake_model(x0, v0, a, t):
+    return 23,42
+
+
+def compute_error_on_inputs(inputs, true_model, indiv_model):
+    err = 0.0
+    for xs in inputs:
+        ys_true = true_model(*xs)
+        ys_indi = indiv_model(*xs)
+        for i, y_true in enumerate(ys_true):
+            err += abs(y_true - ys_indi[i])
+    return err
+
+
+def error(lib_defs, lambda_head, tree, begin=-100, end=100, num_vals=9):
+    if isinstance(tree, AppTree):
+        indiv_model = compile_tree(lib_defs, lambda_head, tree)
+    elif callable(tree):
+        indiv_model = tree
+    else:
+        assert False
+    inputs = make_tuple_samples(len(lambda_head), begin, end, num_vals)
+    return compute_error_on_inputs(inputs, motion_model, indiv_model)
+
+
+def motion_error(tree):
+    return error(physics_lib_defs, motion_lambda_head, tree)
+
+
+
+def make_simple_motion_domain(lib_defs):
+
     R = parse_typ('R')
-    P = parse_typ('P')
 
     gamma = parse_ctx(OrderedDict([
-        ('x0', R),
-        ('v0', R),
-        ('t',  R),
-        ('a',  R),
-        ('0.5', R),
-        ('plus', fun_typ((R, R), R)),
-        ('times', fun_typ((R, R), R)),
-        ('pair', fun_typ(('a', 'b'), (P, 'a', 'b')))
+        (x0_sym, R),
+        (v0_sym, R),
+        (t_sym,  R),
+        (a_sym,  R),
+        (half_sym, R),
+        (plus_sym, fun_typ((R, R), R)),
+        (times_sym, fun_typ((R, R), R)),
+        (pair_sym, pair_cons_typ)
     ]))
 
     goal = parse_typ((P, R, R))
 
+    title = 'Simple Motion Lib'
     optimal_size = 19
 
-    return goal, gamma, optimal_size
+    return title, goal, gamma, optimal_size
 
 
-def make_smart_motion_domain():
+def make_smart_motion_domain(lib_defs):
+
+    u_typ_fun_sym = parse_typ('U')
+
+    def u(*args):
+        return parse_typ((u_typ_fun_sym,) + args)
+
+    pos_typ = u('1', '0')
+    speed_typ = u('1', '-1')
+    time_typ = u('0', '1')
+    acceleration_typ = u('1', '-2')
+    dimensionless_typ = u('0', '0')
 
     m, s, m1, m2, s1, s2 = map(parse_typ, ('m', 's', 'm1', 'm2', 's1', 's2'))
-    u_ms = U(m, s)
-    u_m1s1 = U(m1, s1)
-    u_m2s2 = U(m2, s2)
+    u_ms = u(m, s)
+    u_m1s1 = u(m1, s1)
+    u_m2s2 = u(m2, s2)
 
     plus_m, plus_s = map(parse_typ, ('Pm', 'Ps'))
 
@@ -59,7 +149,9 @@ def make_smart_motion_domain():
                 c = a + b
                 if c in vals:
                     eq_typ = parse_typ((plus_pred, str(a), str(b), str(c)))
-                    eqs.append((name_prefix+str(i), eq_typ))
+                    eq_sym = name_prefix + str(i)
+                    eqs.append((eq_sym, eq_typ))
+                    lib_defs[eq_sym] = None  # equations need no implementation
                     i += 1
         return eqs
 
@@ -67,45 +159,59 @@ def make_smart_motion_domain():
     s_eq_typs = make_plus_eqs(plus_s, 'ps', s_vals)
 
     inputs = [
-        ('x0', U('1', '0')),
-        ('v0', U('1', '-1')),
-        ('t',  U('0', '1')),
-        ('a',  U('1', '-2'))
+        (x0_sym, pos_typ),
+        (v0_sym, speed_typ),
+        (t_sym,  time_typ),
+        (a_sym,  acceleration_typ)
     ]
 
-    constants = [('0.5', U('0', '0'))]
+    constants = [(half_sym, dimensionless_typ)]
 
     typ_plus = fun_typ((u_ms, u_ms), u_ms)
     typ_times = fun_typ(((plus_m, m1, m2, m), (plus_s, s1, s2, s), u_m1s1, u_m2s2), u_ms)
 
     operators = [
-        ('plus', typ_plus),
-        ('times', typ_times)
+        (plus_sym, typ_plus),
+        (times_smart_sym, typ_times)
     ]
 
-    pair_stuff = [('pair', fun_typ(('a', 'b'), ('P', 'a', 'b')))]
+    pair_stuff = [(pair_sym, pair_cons_typ)]
 
     gamma_list = inputs + constants + operators + m_eq_typs + s_eq_typs + pair_stuff
     gamma = parse_ctx(OrderedDict(gamma_list))
 
-    goal = parse_typ(('P', U('1', '0'), U('1', '-1')))
+    goal = parse_typ((P, pos_typ, speed_typ))
 
+    title = 'Smart Motion Lib'
     optimal_size = 29
 
     # TODO !
-    return goal, gamma, optimal_size
+    return title, goal, gamma, optimal_size
 
 
-def test_domain(domain_maker, max_k=42, show_examples=True, skip_zeros=True):
+def test_domain(domain_maker, lib_defs, max_k=42, show_examples=True, skip_zeros=True):
     start_time = time()
 
-    goal, gamma, optimal_size = domain_maker()
+    title, goal, gamma, optimal_size = domain_maker(lib_defs)
 
-    print('== gamma', '='*71)
-    print(gamma)
-    print()
-    print('GOAL =', goal)
-    print()
+    print('==', title, '='*(80-4-len(title)))
+    print('\n in lib? | symbol : type')
+    print('-'*32)
+
+    for sym, declaration in gamma.ctx.items():
+        status = '  no'
+        if sym in lib_defs:
+            code = lib_defs[sym]
+            if code is None:
+                status = 'None'
+            elif callable(code):
+                status = ' Fun'
+            else:
+                status = ' yes'
+
+        print(status, '\t | ', declaration)
+
+    print('\n===> GOAL =', goal, '\n')
 
     gen = Generator(gamma)
 
@@ -134,9 +240,10 @@ def test_domain(domain_maker, max_k=42, show_examples=True, skip_zeros=True):
             if k <= 2*optimal_size:
                 num_up_to_twice_optimal_size += num
 
-            if show_examples:
+            if num > 0 and show_examples:
                 example_tree = gen.gen_one(k, goal)
-                print('\t\t\t', example_tree)
+                err = motion_error(example_tree)
+                print('\t\t\t err=', err, '\t', example_tree)
             else:
                 print()
 
@@ -146,14 +253,20 @@ def test_domain(domain_maker, max_k=42, show_examples=True, skip_zeros=True):
     print('num_up_to_optimal_size :', num_up_to_optimal_size)
     print('num_up_to_twice_optimal_size :', num_up_to_twice_optimal_size)
     print()
-    print('It took', delta_time, 'seconds.')
+    print('It took %.2f seconds.' % delta_time)
     print('='*80, '\n\n')
 
     return delta_time, num_up_to_optimal_size, num_up_to_twice_optimal_size
 
 
 def test_domains():
-    opts = {'max_k': 58, 'show_examples': False, 'skip_zeros': True}
+    opts = {
+        'lib_defs': physics_lib_defs,
+        'max_k': 58,
+        'show_examples': True,
+        'skip_zeros': True
+    }
+
     time_simple, ut1opt_simple, ut2opt_simple = test_domain(make_simple_motion_domain, **opts)
     time_smart, ut1opt_smart, ut2opt_smart = test_domain(make_smart_motion_domain, **opts)
 
@@ -162,11 +275,13 @@ def test_domains():
     up_to_2opt_ratio = ut2opt_simple / ut2opt_smart
 
     print('\n== RESULT STATS', '='*64)
-    print('time_ratio:\t', time_ratio)
-    print('up_to_opt_ratio:\t', up_to_opt_ratio)
-    print('up_to_2opt_ratio:\t', up_to_2opt_ratio)
+    print('time_ratio       (simple/smart):\t %.4f' % time_ratio)
+    print('up_to_opt_ratio  (simple/smart):\t %.1f' % up_to_opt_ratio)
+    print('up_to_2opt_ratio (simple/smart):\t %.1f' % up_to_2opt_ratio)
 
     return time_ratio, up_to_opt_ratio, up_to_2opt_ratio
 
 if __name__ == '__main__':
+    print('fitness of motion_model:', motion_error(motion_model))
+    print('fitness of fake_model:', motion_error(fake_model))
     test_domains()
