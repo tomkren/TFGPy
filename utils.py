@@ -3,6 +3,11 @@ import multiprocessing
 import random
 import sys
 import time
+from functools import reduce
+
+
+def foldr(f, acc, xs):
+    return reduce(lambda x, y: f(y, x), xs[::-1], acc)
 
 
 def update_union(iterable, acc):
@@ -50,10 +55,11 @@ def construct_bijection(tab):
     return table, rev_table
 
 
-def make_enum_table(iterable, make_new):
-    table = {}
+def make_enum_table(iterable, make_new, delta=0, table=None):
+    if table is None:
+        table = {}
     for num, val in enumerate(iterable):
-        table[val] = make_new(num)
+        table[val] = make_new(num + delta)
     return table
 
 

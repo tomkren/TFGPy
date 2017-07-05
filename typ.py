@@ -58,6 +58,9 @@ class Typ:
     def apply_sub(self, sub):
         raise NotImplementedError
 
+    def apply_sub_fun(self, sub_fun):
+        raise NotImplementedError
+
     def skolemize(self):
         acc = {}
         skolemized = self._skolemize_acc(acc)
@@ -88,6 +91,10 @@ class TypVar(Typ):
     def __repr__(self):
         return "TypVar(%s)" % (repr(self.name))
 
+    # TODO udělat pořádně jako eq je pořádně !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    def __lt__(self, other):
+        return str(self.name) < str(other.name)
+
     def gather_leaves(self, pred, make_new):
         if pred(self):
             return make_new(self)
@@ -110,6 +117,9 @@ class TypVar(Typ):
         if self in sub.table:
             return sub.table[self]
         return self
+
+    def apply_sub_fun(self, sub_fun):
+        return sub_fun(self)
 
     def __str__(self):
         return "$%s" % self.name
@@ -156,6 +166,9 @@ class TypSymbol(Typ):
     def apply_sub(self, sub):
         return self
 
+    def apply_sub_fun(self, sub_fun):
+        return self
+
     def _skolemize_acc(self, acc):
         return self
 
@@ -171,6 +184,14 @@ class TypSkolem(TypSymbol):
         if self in sub.table:
             return sub.table[self]
         return self
+
+    def apply_sub_fun(self, sub_fun):
+        return sub_fun(self)
+
+    def get_next_var_id(self, acc=0):
+        if isinstance(self.name, int):
+            return max(acc, self.name + 1)
+        return acc
 
 
 T_ARROW = TypSymbol('->')
@@ -193,6 +214,16 @@ class TypTerm(Typ):
     def make_internal_tuple(xs):
         assert len(xs) > 0
         return reduce(lambda x, y: TypTerm.make_internal_pair(y, x), xs[::-1])
+
+    @staticmethod
+    def is_internal_pair_typ(typ):
+        return isinstance(typ, TypTerm) and \
+               len(typ.arguments) == 3 and \
+               typ.arguments[0] == T_INTERNAL_PAIR
+
+    @staticmethod
+    def split_internal_pair_typ(typ):
+        return typ.arguments[1], typ.arguments[2]
 
     def __init__(self, arguments):
         assert isinstance(arguments, tuple)
@@ -246,6 +277,14 @@ class TypTerm(Typ):
                 return TypTerm(children)
         return self
 
+    def apply_sub_fun(self, sub_fun):
+        # TODO measure speedup
+        children = tuple(a.apply_sub_fun(sub_fun) for a in self.arguments)
+        for c, a in zip(children, self.arguments):
+            if id(c) != id(a):
+                return TypTerm(children)
+        return self
+
     def _skolemize_acc(self, acc):
         # TODO if apply_sub is more efficient with id checks => apply it here as well
         return TypTerm(tuple(a._skolemize_acc(acc) for a in self.arguments))
@@ -269,7 +308,6 @@ def fresh(t_fresh: Typ, t_avoid: Typ, n):
 
 def new_var(typ: Typ, n):
     n1 = typ.get_next_var_id(n)
-
     return TypVar(n1), n1 + 1
 
 
@@ -283,3 +321,6 @@ def make_norm_bijection(typ):
     table, rev_table = utils.construct_bijection(proto_table)
 
     return sub_m.Sub(table), sub_m.Sub(rev_table)
+
+
+T_INTERNAL_PAIR_CONSTRUCTOR = TypTerm.make_arrow(TypVar(0), TypTerm.make_arrow(TypVar(1), TypTerm.make_internal_pair(TypVar(0), TypVar(1))))

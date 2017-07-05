@@ -1,5 +1,6 @@
 import copy
 from collections import namedtuple
+from collections import OrderedDict
 
 import utils
 import typ as typ_m
@@ -163,19 +164,25 @@ class Mover:
         return self.tnvi_n > self.tnvi_0
 
     def make_delta(self, sub):
+
+        # TODO Probrat s Pepou: neni todle to místo kde vzniká nedeterminizmus ???
+        # todo - posledni arg byl set(), de zmenit na OrderedDict
+        # todo - obdobně se pakl ale musi zmenit definice Typ.get_vars() aby konstruoval ordered dict
+        # TODO až to bude vyřešený a ověřený tak taky přesunout jako metodu sub a ne takle ZEMAN-style
+        # ... TODO ... Ale stejně se bojim, že tam zustava nedeterminizmus pač table je nesetřidenej
+        # todo tak to radši nakonec seřadim explicitne jak se to prochází níže
+        # codomain_vars = utils.update_union((t.get_vars() for t in sub.table.values()), OrderedDict())
         codomain_vars = utils.update_union((t.get_vars() for t in sub.table.values()), set())
 
         delta_table = {}
-        nvi = self.tnvi_n
+        n = self.tnvi_n
 
-        for var in codomain_vars:
-            if not isinstance(var.name, int):
-                continue
-            if var.name >= self.tnvi_0:
-                delta_table[var] = typ_m.TypVar(nvi)
-                nvi += 1
+        for var in sorted(codomain_vars):  # TODO Probrat s Pepou přidání sorted ...
+            if isinstance(var.name, int) and var.name >= self.tnvi_0:
+                delta_table[var] = typ_m.TypVar(n)
+                n += 1
 
-        return Sub(delta_table), nvi
+        return Sub(delta_table), n
 
     def move_sub(self, sub):
         delta, nvi = self.make_delta(sub)
@@ -252,4 +259,12 @@ class Mover:
 
 
 if __name__ == "__main__":
-    pass
+    # pass
+    # utils.update_union((t.get_vars() for t in sub.table.values()), set())
+    # acc = utils.update_union([[1,2,3], [4,5,6], [7,8,9]], OrderedDict())
+    # print(acc)
+    TV = typ_m.TypVar
+    xs = set((TV(1000), TV(100), TV(10), TV(1)))
+    print(sorted(xs))
+
+

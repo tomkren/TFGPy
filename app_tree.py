@@ -1,7 +1,7 @@
 from itertools import chain
 
 import sub
-from typ import fresh, is_fun_type, split_fun_type, new_var, TypTerm, INTERNAL_PAIR_CONSTRUCTOR_SYM
+from typ import fresh, is_fun_type, split_fun_type, new_var, TypTerm, INTERNAL_PAIR_CONSTRUCTOR_SYM, T_INTERNAL_PAIR_CONSTRUCTOR
 
 
 class AppTree:
@@ -9,10 +9,10 @@ class AppTree:
         self.counts = None
 
     def is_well_typed(self, gamma):
-        is_ok, _ = self.is_well_typed_acc(gamma, 0)
+        is_ok, _ = self.is_well_typed_acc(gamma, {}, 0)
         return is_ok
 
-    def is_well_typed_acc(self, gamma, n):
+    def is_well_typed_acc(self, gamma, local_vars, n):
         raise NotImplementedError
 
     def apply_sub(self, sub):
@@ -113,6 +113,102 @@ class AppTree:
         return mapper(self)
 
 
+class Abs(AppTree):
+    def __init__(self, var, body, typ=None):
+        super().__init__()
+        assert isinstance(var, Var)
+        # assert isinstance(body, AppTree)
+        assert typ is None or is_fun_type(typ)
+        self.var = var  # TODO nebo radši držet jen var_id ????????????????????????????
+        self.body = body
+        self.typ = typ
+
+    def __repr__(self):
+        return "App(%s, %s, %s)" % (repr(self.var), repr(self.body), repr(self.typ))
+
+    def _eq_content(self, other):
+        return self.var == other.var and self.body == other.body
+
+    def __hash__(self):
+        return 31 * hash(self.var) + hash(self.body)
+
+    def __str__(self):
+        return "(λ%s.%s)" % (self.var, self.body)
+
+    def eval_str(self):
+        return "(lambda %s: %s)" % (self.var.eval_str(), self.body.eval_str())
+
+    def apply_sub(self, sub):
+        return Abs(self.var.apply_sub(sub), self.body.apply_sub(sub), sub(self.typ))
+
+    def is_well_typed_acc(self, gamma, local_vars, n):
+        left, right = split_fun_type(self.typ)
+        var_typ = self.var.typ
+        if left == var_typ and right == self.body.typ:
+
+            # For efficiency local_vars is modified (instead of copied).
+            var_id = self.var.var_id()
+            old_var_typ = local_vars.get(var_id)
+            local_vars[var_id] = var_typ
+
+            is_ok, n1 = self.body.is_well_typed_acc(gamma, local_vars, n)
+
+            # Undo local_vars modification.
+            if old_var_typ is None:
+                del local_vars[var_id]
+            else:
+                local_vars[var_id] = old_var_typ
+
+            return is_ok, n1
+
+        return False, None
+
+    def successors_naive(self, gamma):
+        return [Abs(self.var, body2) for body2 in self.body.successors_naive(gamma)]
+
+    def successors_typed(self, gamma, n):
+        n = self.typ.get_next_var_id(n)
+        ret = []
+        body_succs = self.body.successors_typed(gamma, n)
+        for body_new, sigma, n_new in body_succs:
+            var_new = self.var.apply_sub(sigma)
+            ret.append((Abs(var_new, body_new, sigma(self.typ)), sigma, n_new))
+        return ret
+
+    def get_unfinished_leafs(self):
+        return self.body.get_unfinished_leafs()
+
+    def lower_size_bound(self):
+        return 1 + self.body.lower_size_bound()
+
+    def size(self):
+        return 1 + self.body.size()
+
+    def replace_unfinished_leafs_raw(self, new_subtrees):
+        body_new, sigma = self.body.replace_unfinished_leafs_raw(new_subtrees)
+        var_new = self.var.apply_sub(sigma)
+        return Abs(var_new, body_new, sigma(self.typ)), sigma
+
+    # TODO revidovat
+    # note: pozor, bere v potaz jen netypovaný (dumb) skeletony
+    def is_skeleton_of(self, tree):
+        return (isinstance(tree, UnfinishedLeaf)
+                or (isinstance(tree, Abs) and self.body.is_skeleton_of(tree.body)))
+
+    # TODO revidovat
+    def count_nodes_raw(self):
+        counts = {type(self): 1}
+        for t, c in self.body.count_nodes().items():
+            counts[t] = counts.get(t, 0) + c
+        return counts
+
+    # TODO revidovat
+    def map_reduce(self, mapper, reducer):
+        a = mapper(self)
+        b = self.body.map_reduce(mapper, reducer)
+        return reducer(a, b)
+
+
 class App(AppTree):
     def __init__(self, fun, arg, typ=None):
         super().__init__()
@@ -139,13 +235,13 @@ class App(AppTree):
     def apply_sub(self, sub):
         return App(self.fun.apply_sub(sub), self.arg.apply_sub(sub), sub(self.typ))
 
-    def is_well_typed_acc(self, gamma, n):
+    def is_well_typed_acc(self, gamma, local_vars, n):
         left, right = split_fun_type(self.fun.typ)
 
         if left == self.arg.typ and right == self.typ:
-            is_ok, n1 = self.fun.is_well_typed_acc(gamma, n)
+            is_ok, n1 = self.fun.is_well_typed_acc(gamma, local_vars, n)
             if is_ok:
-                return self.arg.is_well_typed_acc(gamma, n1)
+                return self.arg.is_well_typed_acc(gamma, local_vars, n1)
 
         return False, None
 
@@ -190,18 +286,22 @@ class App(AppTree):
         sigma = sub.dot(arg_sub, fun_sub)
         return App(fun_new2, arg_new2, sigma(self.typ)), sigma
 
+    # TODO revidovat
+    # note: pozor, bere v potaz jen netypovaný (dumb) skeletony
     def is_skeleton_of(self, tree):
         return (isinstance(tree, UnfinishedLeaf)
                 or (isinstance(tree, App)
                     and self.fun.is_skeleton_of(tree.fun)
                     and self.arg.is_skeleton_of(tree.arg)))
 
+    # TODO revidovat
     def count_nodes_raw(self):
         counts = {type(self): 1}
         for t, c in chain(self.fun.count_nodes().items(), self.arg.count_nodes().items()):
             counts[t] = counts.get(t, 0) + c
         return counts
 
+    # TODO revidovat
     def map_reduce(self, mapper, reducer):
         a = mapper(self)
         b = self.fun.map_reduce(mapper, reducer)
@@ -230,11 +330,15 @@ class Leaf(AppTree):
     def apply_sub(self, sub):
         return Leaf(self.sym, sub(self.typ))
 
-    def is_well_typed_acc(self, gamma, n):
-        if self.sym not in gamma.ctx:
-            return False, None
+    def is_well_typed_acc(self, gamma, local_vars, n):
 
-        t_s = gamma.ctx[self.sym].typ
+        if self.sym == INTERNAL_PAIR_CONSTRUCTOR_SYM:
+            t_s = T_INTERNAL_PAIR_CONSTRUCTOR
+        else:
+            if self.sym not in gamma.ctx:
+                return False, None
+            t_s = gamma.ctx[self.sym].typ
+
         fr = fresh(t_s, self.typ, n)
         mu = sub.mgu(self.typ, fr.typ)
 
@@ -258,10 +362,41 @@ class Leaf(AppTree):
     def replace_unfinished_leafs_raw(self, new_subtrees):
         return self, sub.Sub()
 
+    # TODO revidovat
     def is_skeleton_of(self, tree):
         return (isinstance(tree, UnfinishedLeaf)
                 or (isinstance(tree, Leaf)
                     and self.sym == tree.sym))
+
+
+class Var(Leaf):
+    def __init__(self, var_id, typ=None):
+        super().__init__(var_id, typ)
+
+    def var_id(self):
+        return self.sym
+
+    def apply_sub(self, sub):
+        return Var(self.var_id(), sub(self.typ))
+
+    def __repr__(self):
+        return "Var(%s, %s)" % (repr(self.var_id()), repr(self.typ))
+
+    def __str__(self):
+        return 'x' + str(self.var_id())
+
+    def is_well_typed_acc(self, gamma, local_vars, n):
+        var_id = self.var_id()
+        if var_id in local_vars:
+            if self.typ == local_vars[var_id]:
+                return True, self.typ.get_next_var_id(n)
+        return False, None
+
+    # TODO revidovat
+    def is_skeleton_of(self, tree):
+        return (isinstance(tree, UnfinishedLeaf)
+                or (isinstance(tree, Var)
+                    and self.var_id() == tree.var_id()))
 
 
 class UnfinishedLeaf(Leaf):
@@ -279,7 +414,7 @@ class UnfinishedLeaf(Leaf):
         # raise NotImplementedError
         return UnfinishedLeaf(sub(self.typ))
 
-    def is_well_typed_acc(self, gamma, n):
+    def is_well_typed_acc(self, gamma, local_vars, n):
         return False, None
 
     def successors_naive(self, gamma):

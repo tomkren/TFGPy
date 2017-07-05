@@ -2,6 +2,9 @@ import unittest
 import time
 from collections import OrderedDict
 
+import random
+import sys
+
 import normalization
 import typ
 from app_tree import UnfinishedLeaf
@@ -30,6 +33,31 @@ def d1():
                 ("snd", (('P', "a", 'b'), '->', 'b')),
             ])),
             4)
+
+
+def d_general_even_parity_sk():
+    return (parse_typ('Bool'),
+            parse_ctx(OrderedDict([
+
+                ('xs', ('List', 'Bool')),
+
+                ("s", (("a", "->", ("b", "->", "c")), '->', (("a", "->", "b"), "->", ("a", "->", "c")))),
+                ("k", ("a", "->", ("b", "->", "a"))),
+
+                ("and",  ('Bool', '->', ('Bool', '->', 'Bool'))),
+                ("or",   ('Bool', '->', ('Bool', '->', 'Bool'))),
+                ("nand", ('Bool', '->', ('Bool', '->', 'Bool'))),
+                ("nor",  ('Bool', '->', ('Bool', '->', 'Bool'))),
+
+                ('foldr', (('a', '->', ('b', '->', 'b')), '->', ('b', '->', (('List', 'a'), '->', 'b')))),
+
+                ('true', 'Bool'),
+                ('false', 'Bool')
+
+                # ("head", (('List', 'Bool'), '->', ('Maybe', 'Bool'))),
+                # ("tail", (('List', 'Bool'), '->', ('Maybe', ('List', 'Bool')))),
+            ])),
+            5)
 
 
 def d2():
@@ -62,8 +90,7 @@ class TestGen(unittest.TestCase):
                 print(g_num)
 
     def test_d(self):
-        return
-        for goal, gamma, max_k in [d1(), d2(), d3()]:
+        for goal, gamma, max_k in [d_general_even_parity(), d1(), d2(), d3()]:
             g = Generator(gamma, normalizator=normalization.NormalizatorNop)
             gnf = Generator(gamma, normalizator=normalization.Normalizator)
             gNC = Generator(gamma, normalizator=normalization.NormalizatorNop, cache=CacheNop)
@@ -82,6 +109,7 @@ class TestGen(unittest.TestCase):
                 g_num = g.get_num(k, goal)
                 self.assertEqual(s_num, g_num)
                 res.append(g_num)
+                print(g_num)
 
                 # check generator in nf
                 self.assertEqual(s_num, gnf.get_num(k, goal))
@@ -108,11 +136,15 @@ class TestGen(unittest.TestCase):
             self.assertLess(end - start, REALLY_SHORT_TIME)
 
     def test_skeletons(self):
-        #check_skeletons(self)
-        pass
+        check_skeletons(self)
 
 
 IS_LOG_PRINTING = False
+
+
+def set_log_printing(new_val=True):
+    global IS_LOG_PRINTING
+    IS_LOG_PRINTING = new_val
 
 
 def log(*args):
@@ -125,9 +157,9 @@ def log(*args):
 def check_skeletons(tester):
     for goal, gamma, max_k in [d1(), d2(), d3()]:
         log('goal:', goal)
-        gamma.add_internal_pair()
+        # gamma.add_internal_pair() # todo uplne smazat až bude fungovat
         g = Generator(gamma)
-        for k in range(1, max_k):
+        for k in range(1, max_k+1):
             log(' k:', k)
             check_successors(tester, g, k, goal)
 
@@ -140,13 +172,14 @@ def check_successors(tester, generator, k, goal_typ):
         check_successors_acc(tester, generator, k, goal_typ, sk, sk_smart, all_trees)
 
 
+def log_expansion(parent_skeleton, next_skeletons, start_time):
+    delta_time = time.time() - start_time
+    ss_str = ' ... ' + ', '.join((str(s) for s in next_skeletons)) if next_skeletons else ''
+    num = str(len(next_skeletons))
+    log('  dt=', '%.2f' % delta_time, parent_skeleton, (' --> num=' + num), ss_str)
+
+
 def check_successors_acc(tester, generator, k, goal_typ, parent_skeleton, parent_skeleton_smart, all_trees):
-
-    def log_expansion(ps, ss, start_time):
-        delta_time = time.time() - start_time
-        ss_str = ': ' + ', '.join((str(s) for s in ss)) if ss else ''
-        log('  dt=', '%.2f' % delta_time, ps, ' --> ', len(ss), ss_str)
-
     t = time.time()
     skeletons = parent_skeleton.successors(generator, k, goal_typ)
     log_expansion(parent_skeleton, skeletons, t)
@@ -221,20 +254,118 @@ def check_generators_have_same_outputs(generators, goal, max_k):
         print(check_eq_info(sub_results_s))
 
 
+def separate_error_404():
+    # seed = random.randint(0, sys.maxsize)
+    seed = 7669612278400467845
+    random.seed(seed)
+    print(seed)
+
+    goal, gamma, max_k = d3()
+    gene = Generator(gamma)
+    hax_k = 3
+    hax_typ = parse_typ(('_P_', 4, (5, '->', (6, '->', 7))))
+    hax_tree = gene.gen_one(hax_k, hax_typ)
+    print(hax_tree.typ)
+
+
+def separate_error_404_sub():
+
+    goal, gamma, max_k = d3()
+    gene = Generator(gamma)
+    k = 1
+    n = 4
+    typ = parse_typ((1, '->', (2, '->', 3)))
+    tree = gene.subs(k, typ, n)
+    print(tree.typ)
+
+
+def separate_error_ip_new():
+    goal, gamma, max_k = d3()
+    gene = Generator(gamma)
+    k = 2
+    skel = UnfinishedLeaf(goal)
+
+    set_log_printing(True)
+
+    t = time.time()
+    next_skels = skel.successors_smart(gene, k)
+    log_expansion(skel, next_skels, t)
+
+    # print(next_skels)
+
+
+def separate_error_bad_smart_expansion_2017_02_28():
+    print('Separating error: bad_expansion_2017_02_28')
+    problem_goal, problem_gamma, _ = d3()
+    gene = Generator(problem_gamma)
+    problem_k = 5
+    skel_0 = UnfinishedLeaf(problem_goal)
+
+    set_log_printing(True)
+
+    def succ(sk, path=None, is_smart=True, goal_typ=None):
+        t = time.time()
+        if is_smart:
+            next_sks = sk.successors_smart(gene, problem_k)
+        else:
+            next_sks = sk.successors(gene, problem_k, goal_typ)
+        log_expansion(sk, next_sks, t)
+        if not path:
+            return next_sks
+        else:
+            i = path[0]
+            path = path[1:]
+            next_one = next_sks[i]
+            print('  i=', i, 'selected:', next_one)
+            return succ(next_one, path, is_smart, goal_typ) if path else next_one
+
+    bug_path_1 = [0, 0, 0, 2, 0, 0]  # (((k (? ?)) ?) ?)
+    bug_path_2 = [0, 0, 0, 2, 0, 0]
+
+    skel = succ(skel_0, bug_path_1, False, problem_goal)
+    print(skel)
+    print()
+
+    seed = 42
+    random.seed(seed)
+    print('seed:', seed)
+    tree = gene.gen_one_uf(skel, problem_k, problem_goal)
+    log(str(tree))
+    log('is_well_typed:', tree.is_well_typed(gene.gamma))
+
+    print()
+
+    skel = succ(skel_0, bug_path_2)
+    print(skel)
+    print()
+
+
 if __name__ == "__main__":
     if True:
         unittest.main()
+        # separate_error_ip_new()
+        # separate_error_404()
+        # separate_error_404_sub()
+        # separate_error_bad_smart_expansion_2017_02_28()
+
     else:
-        pass
-        #IS_LOG_PRINTING = True
-        #check_skeletons(TestGen())
+
+        # seed = random.randint(0, sys.maxsize)
+        seed = 1482646273836000672
+        # seed = 2659613674626116145
+        # seed = 249273683574813401
+        random.seed(seed)
+        print(seed)
+        # print('randomState:', random.getstate())
+
+        IS_LOG_PRINTING = True
+        check_skeletons(TestGen())
 
     if not True:
         goal, gamma, max_k = d2()
 
-        print(gamma, '\n')
-
-        gamma.add_internal_pair()
+        # print(gamma, '\n')
+        # gamma.add_internal_pair()  # todo uplne smazat až bude fungovat
 
         print(gamma, '\n')
 

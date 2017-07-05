@@ -8,7 +8,7 @@ from context import Context
 from normalization import Normalizator
 from sub import mgu, Mover, SubRes, PreTs1Res, PreSubRes
 from tracer_deco import tracer_deco
-from typ import Typ, fresh, new_var, TypTerm
+from typ import Typ, fresh, new_var, TypTerm, INTERNAL_PAIR_CONSTRUCTOR_SYM
 
 
 def ts1_static(gamma: Context, typ: Typ, n):
@@ -52,16 +52,17 @@ def pack(typ, n, pre_sub_results):
 
 
 class Generator:
-    def __init__(self, gamma, cache=Cache, normalizator=Normalizator):
+    def __init__(self, gamma, cache=Cache, normalizator=Normalizator, cache_subproducts=False):
         self.gamma = gamma
         self.cache = cache(self)
         self.normalizator = normalizator
+        self.cache_subproducts = cache_subproducts
 
     def __str__(self):
         return "Generator(...)"
 
     def get_num(self, k, typ):
-        nf = self.normalizator(typ)
+        nf = self.normalizator(typ, 0)
         return self.cache.get_num(k, nf.typ_nf)
 
     def get_num_uf(self, uf_tree, k, typ):
@@ -74,7 +75,79 @@ class Generator:
         pre_ts1_res = ts1_static(self.gamma, typ, n)
         return Mover.move_pre_ts1_results(typ, n, pre_ts1_res)
 
+    # == SUBS ====================================================================================
+
+    # toto je náhrada za subs_internal_pair
+    def subs_product(self, k, typ, n):
+        assert TypTerm.is_internal_pair_typ(typ)
+        assert k >= 1
+        if k == 1:
+            return []
+
+        ret = []
+        typ_a, typ_b_0 = TypTerm.split_internal_pair_typ(typ)
+        n = typ_b_0.get_next_var_id(n) # todo zvážit jestli rači nepocitat z celýho typu
+
+        for i in range(2, k):
+            j = k - i
+            i_without_cons = i - 1
+            assert i_without_cons > 0
+
+            results_a = self.subs(i_without_cons, typ_a, n)
+            for res_a in results_a:
+
+                typ_b = res_a.sub(typ_b_0)
+                n = res_a.n
+
+                results_b = self.recursive_subs_call_for_product_tail(j, typ_b, n)
+                for res_b in results_b:
+
+                    num_ab = res_b.num * res_a.num
+                    sigma_ab = sub.dot(res_b.sub, res_a.sub).restrict(typ)
+                    ret.append(sub.PreSubRes(num_ab, sigma_ab))
+
+        return pack(typ, n, ret)
+
+    # Here is made the decision about that sub-product results are not stored in cache
+    def recursive_subs_call_for_product_tail(self, j, typ_b, n):
+        if TypTerm.is_internal_pair_typ(typ_b):
+            if self.cache_subproducts:
+                return self.subs(j, typ_b, n)
+            else:
+                # Ensures that intermediate sub-product results are not stored in cache
+                return self.subs_product(j, typ_b, n)
+        else:
+            # typ_b is the last element of the whole product
+            return self.subs(j, typ_b, n)
+
+    # todo pak smazat, má nahradit subs_product
+    def subs_internal_pair(self, i, j, typ, n):
+
+        i_without_cons = i - 1
+        if i_without_cons == 0:
+            return []
+
+        ret = []
+        typ_a, typ_b_0 = TypTerm.split_internal_pair_typ(typ)
+        n = typ_b_0.get_next_var_id(n)
+
+        for res_a in self.subs(i_without_cons, typ_a, n):
+            typ_b = res_a.sub(typ_b_0)
+            for res_b in self.subs(j, typ_b, res_a.n):
+                sigma_ab = sub.dot(res_b.sub, res_a.sub).restrict(typ)
+                num_ab = res_b.num * res_a.num
+
+                ret.append(sub.PreSubRes(num_ab, sigma_ab))
+
+        return ret
+
     def subs_ij(self, i, j, typ, n):
+
+        # todo potvrdit ze funguje
+        # tady se da zapnout stara implementace productu (nahrazeno pomoci subs_product volaneho v subs_compute)
+        # if TypTerm.is_internal_pair_typ(typ):
+        #    return self.subs_internal_pair(i, j, typ, n)
+
         ret = []
         alpha, n1 = new_var(typ, n)
         typ_f = TypTerm.make_arrow(alpha, typ)
@@ -103,31 +176,29 @@ class Generator:
 
         return ret
 
-        # @tracer_deco(log_ret=True,
-        # ret_pp=lambda results: "\n".join("NUM=%d\tN=%d\n%s" % (r.num, r.n, r.sub) for r in results))
+    # @tracer_deco(log_ret=True,
+    # ret_pp=lambda results: "\n".join("NUM=%d\tN=%d\n%s" % (r.num, r.n, r.sub) for r in results))
 
     def subs(self, k, typ, n):
-        nf = self.normalizator(typ)
-        results_nf = self.cache.subs(k, nf.typ_nf, n)
-        ret = nf.denormalize(results_nf, n)
-
-        return ret
+        nf = self.normalizator(typ, n)
+        results_nf = self.cache.subs(k, nf.typ_nf, nf.n_nf)
+        return nf.denormalize(results_nf)
 
     def subs_uf_smart(self, uf_tree, k, n):
 
         uf_leafs = uf_tree.get_unfinished_leafs()
 
         num_uf_leafs = len(uf_leafs)
-        num_leafs = uf_tree.size()
+        num_fin_leafs = uf_tree.size()
 
-        if num_leafs + num_uf_leafs > k:
+        if num_fin_leafs + num_uf_leafs > k:
             return []
 
         if num_uf_leafs > 0:
             hax_typ = TypTerm.make_internal_tuple([uf_leaf.typ for uf_leaf in uf_leafs])
-            k_hax_pair = k - num_leafs + num_uf_leafs - 1
-            return self.subs(k_hax_pair, hax_typ, n)
-        elif num_leafs == k:
+            hax_k = k - num_fin_leafs + num_uf_leafs-1
+            return self.subs(hax_k, hax_typ, n)
+        elif num_fin_leafs == k:
             return [sub.PreSubRes(1, sub.Sub())]
         else:
             return []
@@ -156,6 +227,12 @@ class Generator:
     # @tracer_deco()
     def subs_compute(self, k, typ, n):
         assert k >= 1
+
+        # todo potvrdit ze funguje
+        # zakomentovanim se přepne na starou implementaci produktů (potřeba odkom v subs_ij)
+        if TypTerm.is_internal_pair_typ(typ):
+            return self.subs_product(k, typ, n)
+
         if k == 1:
             ret = (PreSubRes(1, res.sub) for res in self.cache.ts_1(typ, n))
         else:
@@ -164,6 +241,8 @@ class Generator:
                 ret.extend(self.subs_ij(i, k - i, typ, n))
 
         return pack(typ, n, ret)
+
+    # == GEN ONE ===============================================================================
 
     def gen_one(self, k, typ):
         ret = self.gen_one_random(k, typ, 0)
@@ -181,13 +260,26 @@ class Generator:
         if num_leafs + num_uf_leafs > k:
             return None
 
+        # if num_uf_leafs == 1:
+        #     hax_typ = uf_leafs[0].typ
+        #     hax_k = k - num_leafs
+        #     hax_tree = self.gen_one(hax_k, hax_typ)
+        #     pass  # TODO !!!!!! special treatment maybe needed, at least for optimizations
+
         if num_uf_leafs > 0:
             hax_typ = TypTerm.make_internal_tuple([uf_leaf.typ for uf_leaf in uf_leafs])
-            k_hax_pair = k - num_leafs + num_uf_leafs - 1
-            hax_tree = self.gen_one(k_hax_pair, hax_typ)
+            real_k = k - num_leafs
+            hax_k = real_k + num_uf_leafs-1
+            hax_tree = self.gen_one(hax_k, hax_typ)
             hax_subtrees = split_internal_tuple(hax_tree)
             assert len(uf_leafs) == len(hax_subtrees)
             tree, sigma = uf_tree.replace_unfinished_leafs(hax_subtrees)
+
+            if not tree.is_well_typed(self.gamma):
+                for subtree in hax_subtrees:
+                    assert subtree.is_well_typed(self.gamma)
+                assert False
+
             return tree
         elif num_leafs == k:
             return uf_tree
@@ -226,12 +318,16 @@ class Generator:
 
     def gen_one_raw(self, ball, k, typ, n):
         assert k >= 1
+        nf = self.normalizator(typ, n)
 
-        nf = self.normalizator(typ)
-        if k == 1:
-            tree, n1 = self.gen_one_leaf(ball, nf.typ_nf, n)
+        # todo potvrdit ze funguje
+        if TypTerm.is_internal_pair_typ(nf.typ_nf):
+            tree, n1 = self.gen_one_product(ball, k, nf.typ_nf, nf.n_nf)
         else:
-            tree, n1 = self.gen_one_app(ball, k, nf.typ_nf, n)
+            if k == 1:
+                tree, n1 = self.gen_one_leaf(ball, nf.typ_nf, nf.n_nf)
+            else:
+                tree, n1 = self.gen_one_app(ball, k, nf.typ_nf, nf.n_nf)
 
         # TODO denormalize n1 as well
         return nf.denormalize_tree(tree), n1
@@ -270,40 +366,134 @@ class Generator:
 
         return Leaf(uf_tree.sym, mu(typ)), f.n
 
+    # todo potom volat vejš, ted zatim nevoláno...
+    def gen_one_product(self, ball, k, typ, n):
+        assert TypTerm.is_internal_pair_typ(typ)
+        assert k > 1
+
+        typ_a, typ_b_0 = TypTerm.split_internal_pair_typ(typ)
+        n = typ_b_0.get_next_var_id(n)
+
+        for i in range(2, k):
+            j = k - i
+            i_without_cons = i - 1
+            assert i_without_cons > 0
+
+            results_a = self.subs(i_without_cons, typ_a, n)
+            for res_a in results_a:
+
+                typ_b = res_a.sub(typ_b_0)
+                n = res_a.n
+
+                results_b = self.recursive_subs_call_for_product_tail(j, typ_b, n)
+                for res_b in results_b:
+
+                    num_ab = res_b.num * res_a.num
+                    if ball < num_ab:
+                        return self.gen_one_internal_pair_core(i_without_cons, j, typ, typ_a, typ_b, res_a, res_b)
+                    ball -= num_ab
+
+        assert False
+
+    # todo pak smazat, má nahradit gen_one_product
+    def gen_one_internal_pair(self, ball, k, typ, n):
+
+        typ_a, typ_b_0 = TypTerm.split_internal_pair_typ(typ)
+        n = typ_b_0.get_next_var_id(n)
+
+        for i in range(1, k):
+            j = k - i
+
+            i_without_cons = i - 1
+            if i_without_cons == 0:
+                continue
+
+            for res_a in self.subs(i_without_cons, typ_a, n):
+                typ_b = res_a.sub(typ_b_0)
+                for res_b in self.subs(j, typ_b, res_a.n):
+                    num_ab = res_b.num * res_a.num
+                    if ball < num_ab:
+                        return self.gen_one_internal_pair_core(i_without_cons, j, typ, typ_a, typ_b, res_a, res_b)
+                    ball -= num_ab
+        assert False
+
     def gen_one_app(self, ball, k, typ, n):
+
+        # todo potvrdit zefunguje
+        # Tady se da zapnout stara implementace (nahrazeno momoci gen_one_product)
+        # if TypTerm.is_internal_pair_typ(typ):
+        #     return self.gen_one_internal_pair(ball, k, typ, n)
+
         alpha, n1 = new_var(typ, n)
         typ_f = TypTerm.make_arrow(alpha, typ)
 
         for i in range(1, k):
             j = k - i
-
             for res_f in self.subs(i, typ_f, n1):
                 typ_x = res_f.sub(alpha)
                 for res_x in self.subs(j, typ_x, res_f.n):
                     num_fx = res_x.num * res_f.num
                     if ball < num_fx:
-                        return self.gen_one_app_core(i, j,
-                                                     typ,
-                                                     typ_f, typ_x,
-                                                     res_f, res_x)
+                        return self.gen_one_app_core(i, j, typ, typ_f, typ_x, res_f, res_x)
                     ball -= num_fx
         assert False
+
+    def gen_one_internal_pair_core(self, i_without_cons, j, typ, typ_a, typ_b, res_a, res_b):
+        typ_as, deskolem_sub_a = res_a.sub(typ_a).skolemize()
+        typ_bs, deskolem_sub_b = res_b.sub(typ_b).skolemize()
+
+        n = res_a.n
+        s_tree_a, n = self.gen_one_random(i_without_cons, typ_as, n)
+        s_tree_b, n = self.gen_one_random(j, typ_bs, n)
+
+        assert s_tree_a is not None
+        assert s_tree_b is not None
+
+        assert s_tree_a.is_well_typed(self.gamma)
+        assert s_tree_b.is_well_typed(self.gamma)
+
+        tree_a = s_tree_a.apply_sub(sub.dot(res_b.sub, deskolem_sub_a))
+        tree_b = s_tree_b.apply_sub(deskolem_sub_b)
+
+        sigma_ab = sub.dot(res_b.sub, res_a.sub)  # not needed: .restrict(typ)
+        tree_ab_typ = sigma_ab(typ)
+
+        assert tree_ab_typ == TypTerm.make_internal_pair(tree_a.typ, tree_b.typ)
+
+        partial_pair_typ = TypTerm.make_arrow(tree_b.typ, tree_ab_typ)
+        cons_typ = TypTerm.make_arrow(tree_a.typ, partial_pair_typ)
+
+        cons = Leaf(INTERNAL_PAIR_CONSTRUCTOR_SYM, cons_typ)
+        partial_pair = App(cons, tree_a, partial_pair_typ)
+        tree_ab = App(partial_pair, tree_b, tree_ab_typ)
+
+        assert tree_a.is_well_typed(self.gamma)
+        assert tree_b.is_well_typed(self.gamma)
+        assert tree_ab.is_well_typed(self.gamma)
+
+        return tree_ab, n
 
     def gen_one_app_core(self, i, j, typ, typ_f, typ_x, res_f, res_x):
         typ_fs, deskolem_sub_f = res_f.sub(typ_f).skolemize()
         typ_xs, deskolem_sub_x = res_x.sub(typ_x).skolemize()
 
-        s_tree_f, n = self.gen_one_random(i, typ_fs, res_x.n)
+        n = res_x.n
+        s_tree_f, n = self.gen_one_random(i, typ_fs, n)
         s_tree_x, n = self.gen_one_random(j, typ_xs, n)
 
         assert s_tree_f is not None
         assert s_tree_x is not None
+
+        assert s_tree_f.is_well_typed(self.gamma)
+        assert s_tree_x.is_well_typed(self.gamma)
 
         tree_f = s_tree_f.apply_sub(sub.dot(res_x.sub, deskolem_sub_f))
         tree_x = s_tree_x.apply_sub(deskolem_sub_x)
 
         sigma_fx = sub.dot(res_x.sub, res_f.sub)  # not needed: .restrict(typ)
         tree_fx = App(tree_f, tree_x, sigma_fx(typ))
+
+        assert tree_fx.is_well_typed(self.gamma)
 
         return tree_fx, n
 
