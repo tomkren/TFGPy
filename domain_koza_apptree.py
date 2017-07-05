@@ -59,7 +59,7 @@ def regression_domain_koza():
         'exp': math.exp,
     }
 
-    goal, gamma = d()
+    goal, gamma, _ = d()
     cache = FitnessCache()
 
     def fitness(individual_app_tree):
