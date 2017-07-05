@@ -28,7 +28,27 @@ def d_general_even_parity():
                 ('False', 'Bool'),
                 ('xs', ('List', 'Bool')),
             ])),
-            20)
+            9)
+
+
+def d_lame_even_parity():
+    return (parse_typ('Bool'),
+            parse_ctx(OrderedDict([
+                ("copy", ('a', '->', ('P', 'a', 'a'))),
+                ("seri", (('a', '->', 'b'), '->', (('b', '->', 'c'), '->', ('a', '->', 'c')))),
+                ("para", (('a', '->', 'b'), '->', (('c', '->', 'd'), '->', (('P', 'a', 'c'), '->', ('P', 'b', 'd'))))),
+
+                ("s_and", (('P', 'Bool', 'Bool'), '->', 'Bool')),
+                ("s_or", (('P', 'Bool', 'Bool'), '->', 'Bool')),
+                ("s_nand", (('P', 'Bool', 'Bool'), '->', 'Bool')),
+                ("s_nor", (('P', 'Bool', 'Bool'), '->', 'Bool')),
+
+                ('foldr', ((('P', 'Bool', 'Bool'), '->', 'Bool'), '->', ('Bool', '->', (('List', 'Bool'), '->', 'Bool')))),
+                ('True', 'Bool'),
+                ('False', 'Bool'),
+                ('xs', ('List', 'Bool')),
+            ])),
+            9)
 
 
 def domain_parity(SIZE):
@@ -46,7 +66,7 @@ def domain_parity(SIZE):
         'foldr': lambda f: (lambda acc: (lambda xs: reduce(lambda a, b: f((b, a)), reversed(xs), acc))),
     }
 
-    goal, gamma, _ = d_general_even_parity()
+    goal, gamma, _ = d_lame_even_parity()
     cache = FitnessCache()
 
     def format_one(eval_str):
