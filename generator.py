@@ -86,7 +86,7 @@ class Generator:
 
         ret = []
         typ_a, typ_b_0 = TypTerm.split_internal_pair_typ(typ)
-        n = typ_b_0.get_next_var_id(n) # todo zvážit jestli rači nepocitat z celýho typu
+        n = typ_b_0.get_next_var_id(n)  # todo zvážit jestli rači nepocitat z celýho typu
 
         for i in range(2, k):
             j = k - i
@@ -101,7 +101,6 @@ class Generator:
 
                 results_b = self.recursive_subs_call_for_product_tail(j, typ_b, n)
                 for res_b in results_b:
-
                     num_ab = res_b.num * res_a.num
                     sigma_ab = sub.dot(res_b.sub, res_a.sub).restrict(typ)
                     ret.append(sub.PreSubRes(num_ab, sigma_ab))
@@ -196,7 +195,7 @@ class Generator:
 
         if num_uf_leafs > 0:
             hax_typ = TypTerm.make_internal_tuple([uf_leaf.typ for uf_leaf in uf_leafs])
-            hax_k = k - num_fin_leafs + num_uf_leafs-1
+            hax_k = k - num_fin_leafs + num_uf_leafs - 1
             return self.subs(hax_k, hax_typ, n)
         elif num_fin_leafs == k:
             return [sub.PreSubRes(1, sub.Sub())]
@@ -269,7 +268,7 @@ class Generator:
         if num_uf_leafs > 0:
             hax_typ = TypTerm.make_internal_tuple([uf_leaf.typ for uf_leaf in uf_leafs])
             real_k = k - num_leafs
-            hax_k = real_k + num_uf_leafs-1
+            hax_k = real_k + num_uf_leafs - 1
             hax_tree = self.gen_one(hax_k, hax_typ)
             hax_subtrees = split_internal_tuple(hax_tree)
             assert len(uf_leafs) == len(hax_subtrees)
@@ -535,3 +534,26 @@ class Generator:
         tree_fx = App(tree_f, tree_x, sigma_fx(typ))
 
         return tree_fx, n
+
+    def uf_tree_successors_up_to(self, uf_tree, max_k, goal):
+        return uf_tree.successors_up_to(self, max_k, goal)
+
+    def uf_tree_successors(self, uf_tree, k, goal):
+        return uf_tree.successors(self, k, goal)
+
+
+class GeneratorSmart(Generator):
+    def gen_one_uf(self, uf_tree, k, typ):
+        return self.gen_one_uf_smart(uf_tree, k)
+
+    def get_num_uf(self, uf_tree, k, typ):
+        return self.get_num_uf_smart(uf_tree, k)
+
+    def subs_uf(self, uf_tree, k, typ, n):
+        return self.subs_uf_smart(uf_tree, k, n)
+
+    def uf_tree_successors_up_to(self, uf_tree, max_k, goal):
+        return uf_tree.successors_smart_up_to(self, max_k)
+
+    def uf_tree_successors(self, uf_tree, k, goal):
+        return uf_tree.successors_smart(self, k)

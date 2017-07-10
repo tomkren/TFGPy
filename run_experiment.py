@@ -26,12 +26,18 @@ APP_T_FIXED_K = 'fix_k'
 APP_T_CHOOSE_K = 'choose_k'
 
 
+import random
+random.seed(3)
+
+
 def parse_args():
     parser = argparse.ArgumentParser()
 
     parser.add_argument('--proc', type=int, default=1)
     parser.add_argument('--repeat', type=int, default=10)
     parser.add_argument('--k', type=int, default=5)
+
+    parser.add_argument('--smart-uf', '-s', action='store_true', default=False)
 
     parser.add_argument('--mcts', action='store_true', default=False)
     parser.add_argument('--nmcs', action='store_true', default=False)
@@ -75,7 +81,7 @@ if __name__ == "__main__":
             domain = domain_primes_apptree
         else:
             assert False
-        make_env = domain.make_env_app_tree
+        make_env = lambda: domain.make_env_app_tree(smart=args.smart_uf)
     elif args.stack:
         if args.domain == D_KOZA_POLY:
             domain = domain_koza_stack
@@ -87,6 +93,10 @@ if __name__ == "__main__":
     else:
         assert False
 
+    uf_factory = lambda env: UnfinishedLeaf()
+    if args.smart_uf:
+        uf_factory = lambda env: UnfinishedLeaf(typ=env.goal)
+
     if args.nmcs:
         # Nested MC Search
         def one_iteration(worker_env):
@@ -95,11 +105,11 @@ if __name__ == "__main__":
             assert not evals_before
             time_before = time.time()
             if args.app_tree == APP_T_CHOOSE_K:
-                root = ChooseKTNode(UnfinishedLeaf(), args.k)
+                root = ChooseKTNode(uf_factory(env), args.k)
             elif args.app_tree == APP_T_FIXED_K:
-                root = UFTNode(UnfinishedLeaf(), args.k)
+                root = UFTNode(uf_factory(env), args.k)
             elif args.app_tree == APP_T_MAX_K:
-                root = MaxKTNode(UnfinishedLeaf(), args.k)
+                root = MaxKTNode(uf_factory(env), args.k)
             elif args.stack:
                 root = StackNode([])
             else:
@@ -129,11 +139,11 @@ if __name__ == "__main__":
             evals_before = env.count_evals()
             time_before = time.time()
             if args.app_tree == APP_T_CHOOSE_K:
-                root = ChooseKTNode(UnfinishedLeaf(), args.k)
+                root = ChooseKTNode(uf_factory(env), args.k)
             elif args.app_tree == APP_T_FIXED_K:
-                root = UFTNode(UnfinishedLeaf(), args.k)
+                root = UFTNode(uf_factory(env), args.k)
             elif args.app_tree == APP_T_MAX_K:
-                root = MaxKTNode(UnfinishedLeaf(), args.k)
+                root = MaxKTNode(uf_factory(env), args.k)
             elif args.stack:
                 root = StackNode([])
             else:

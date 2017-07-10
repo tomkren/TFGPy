@@ -28,7 +28,7 @@ def d_general_even_parity():
                 ('False', 'Bool'),
                 ('xs', ('List', 'Bool')),
             ])),
-            9)
+            4)
 
 
 def d_lame_even_parity():

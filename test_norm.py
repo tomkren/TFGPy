@@ -25,7 +25,8 @@ class TestNorm(unittest.TestCase):
     def test_identity(self):
         typs = t1()
         for typ in typs:
-            n = Normalizator(typ)
+            # TODO nejak ty testy udelat lip
+            n = BuggedNormalizator(typ, 0)
 
             self.assertEqual(typ, n.sub_from_nf(n.sub_to_nf(typ)))
             self.assertEqual(typs, [n.sub_from_nf(n.sub_to_nf(typ)) for typ in typs])

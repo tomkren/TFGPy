@@ -31,6 +31,7 @@ class AppTree:
     def __hash__(self):
         raise NotImplementedError
 
+    # TODO za odmenu refaktorovat
     def successors_up_to(self, gen, max_k, typ):
         ret = []
         for naive_succ in self.successors_naive(gen.gamma):
@@ -47,6 +48,16 @@ class AppTree:
             num = gen.get_num_uf(naive_succ, k, typ)
             if num > 0:
                 ret.append(naive_succ)
+        return ret
+
+    def successors_smart_up_to(self, gen, max_k):
+        ret = []
+        for uf_tree, sigma, n in self.successors_typed(gen.gamma, 0):
+            for k in range(uf_tree.count_min_k(), max_k + 1):
+                num = gen.get_num_uf_smart(uf_tree, k)
+                if num > 0:
+                    ret.append(uf_tree)
+                    break
         return ret
 
     def successors_smart(self, gen, k):

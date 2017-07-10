@@ -81,9 +81,13 @@ def regression_domain_koza():
     return goal, gamma, fitness, (lambda: len(cache)), cache
 
 
-def make_env_app_tree(get_raw_domain=regression_domain_koza, early_end_limit=1.0):
+def make_env_app_tree(get_raw_domain=regression_domain_koza, early_end_limit=1.0, smart=False):
     goal, gamma, raw_fitness, count_evals, cache = get_raw_domain()
-    gen = generator.Generator(gamma)
+
+    if smart:
+        gen = generator.GeneratorSmart(gamma)
+    else:
+        gen = generator.Generator(gamma)
 
     env = Environment()
     env.cache = cache
@@ -94,10 +98,14 @@ def make_env_app_tree(get_raw_domain=regression_domain_koza, early_end_limit=1.0
 
     @utils.pp_function('fitness()')
     def fitness(node):
+        print(repr(node))
         assert isinstance(node, UFTNode)
         # make sure we only run fitness on finished,
         # fully typed trees
-        assert node.uf_tree.typ is not None
+        if smart:
+            assert node.uf_tree.is_finished()
+        else:
+            assert node.uf_tree.typ is not None
         return raw_fitness(node.uf_tree)
 
     @utils.pp_function('early_end_test()')
@@ -107,9 +115,14 @@ def make_env_app_tree(get_raw_domain=regression_domain_koza, early_end_limit=1.0
     @utils.pp_function('finish()')
     def finish(node):
         assert isinstance(node, UFTNode)
-        if node.uf_tree.typ is not None:
-            assert node.uf_tree.is_finished()
-            return node.uf_tree
+
+        if smart:
+            if node.uf_tree.is_finished():
+                return node.uf_tree
+        else:
+            if node.uf_tree.typ is not None:
+                assert node.uf_tree.is_finished()
+                return node.uf_tree
 
         # TODO this branch is not done
         # it is possible to do the same as in MacxKTNode
@@ -123,12 +136,20 @@ def make_env_app_tree(get_raw_domain=regression_domain_koza, early_end_limit=1.0
         elif isinstance(node, UFTNode):
             finished_tree = gen.gen_one_uf(node.uf_tree, node.k, goal)
             ret = UFTNode(finished_tree, node.k)
+        else:
+            assert False
 
         # this means that the node we are to finish
         # is not populated (no such tree exists)
         # in such case, we should not even be called
         assert ret.uf_tree is not None
-        assert ret.uf_tree.typ is not None
+        if smart:
+            print(repr(node.uf_tree))
+            print(node.uf_tree.eval_str())
+            assert node.uf_tree.is_finished()
+        else:
+            assert ret.uf_tree.typ is not None
+
         return ret
 
     @utils.pp_function('is_finished()')
@@ -143,9 +164,9 @@ def make_env_app_tree(get_raw_domain=regression_domain_koza, early_end_limit=1.0
                     # if gen.get_num_uf(node.uf_tree, k, goal)
                     ]
         if isinstance(node, MaxKTNode):
-            return [MaxKTNode(c, node.max_k) for c in node.uf_tree.successors_up_to(gen, node.max_k, goal)]
+            return [MaxKTNode(c, node.max_k) for c in gen.uf_tree_successors_up_to(node.uf_tree, node.max_k, goal)]
         if isinstance(node, UFTNode):
-            return [UFTNode(c, node.k) for c in node.uf_tree.successors(gen, node.k, goal)]
+            return [UFTNode(c, node.k) for c in gen.uf_tree_successors(node.uf_tree, node.k, goal)]
         assert False
 
     @utils.pp_function('advance()')
@@ -160,6 +181,7 @@ def make_env_app_tree(get_raw_domain=regression_domain_koza, early_end_limit=1.0
         if isinstance(node, UFTNode):
             return UFTNode(new_uf_tree, finished_tree.k)
 
+    env.goal = goal
     env.fitness = fitness
     env.early_end_test = early_end_test
     env.finish = finish
