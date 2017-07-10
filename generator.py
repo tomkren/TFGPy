@@ -269,9 +269,16 @@ class Generator:
             hax_typ = TypTerm.make_internal_tuple([uf_leaf.typ for uf_leaf in uf_leafs])
             real_k = k - num_leafs
             hax_k = real_k + num_uf_leafs - 1
+
+            num = self.get_num(hax_k, hax_typ)
+            if not num:
+                return None
+
             hax_tree = self.gen_one(hax_k, hax_typ)
             hax_subtrees = split_internal_tuple(hax_tree)
+
             assert len(uf_leafs) == len(hax_subtrees)
+
             tree, sigma = uf_tree.replace_unfinished_leafs(hax_subtrees)
 
             if not tree.is_well_typed(self.gamma):

@@ -109,10 +109,10 @@ def experiment_eval(one_iteration, make_env, repeat=10, processes=1, print_dots=
         global worker_env
         worker_env = make_env()
 
-    pool = multiprocessing.Pool(processes=processes, initializer=make_worker_env)
 
     imap = map
     if processes > 1 and repeat > 1:
+        pool = multiprocessing.Pool(processes=processes, initializer=make_worker_env)
         imap = pool.imap_unordered
     else:
         make_worker_env()
