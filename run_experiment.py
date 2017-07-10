@@ -6,6 +6,8 @@ import domain_koza_apptree
 import domain_koza_stack
 import domain_parity_apptree
 import domain_parity_stack
+import domain_physics
+import domain_physics_smart
 import domain_primes_apptree
 from app_tree import UnfinishedLeaf
 from mcts import MCTNode, mct_search, C_UCT_EXPLORE_DEFAULT
@@ -19,14 +21,18 @@ D_PRIMES = 'primes'
 
 D_KOZA_POLY = 'koza_poly'
 
+D_PHYSICS = 'physics'
+
+D_PHYSICS_SMART = 'physics_smart'
+
 APP_T_MAX_K = 'max_k'
 
 APP_T_FIXED_K = 'fix_k'
 
 APP_T_CHOOSE_K = 'choose_k'
 
-
 import random
+
 random.seed(3)
 
 
@@ -42,7 +48,7 @@ def parse_args():
     parser.add_argument('--mcts', action='store_true', default=False)
     parser.add_argument('--nmcs', action='store_true', default=False)
 
-    parser.add_argument('--domain', type=str, choices=[D_KOZA_POLY, D_PRIMES, D_PARITY], default=D_KOZA_POLY)
+    parser.add_argument('--domain', type=str, choices=[D_KOZA_POLY, D_PRIMES, D_PARITY, D_PHYSICS_SMART, D_PHYSICS], default=D_KOZA_POLY)
     parser.add_argument('--stack', action='store_true', default=False)
     parser.add_argument('--app-tree', type=str, choices=['', APP_T_CHOOSE_K, APP_T_FIXED_K, APP_T_MAX_K],
                         default='')
@@ -79,6 +85,10 @@ if __name__ == "__main__":
             domain = domain_parity_apptree
         elif args.domain == D_PRIMES:
             domain = domain_primes_apptree
+        elif args.domain == D_PHYSICS:
+            domain = domain_physics
+        elif args.domain == D_PHYSICS_SMART:
+            domain = domain_physics_smart
         else:
             assert False
         make_env = lambda: domain.make_env_app_tree(smart=args.smart_uf)

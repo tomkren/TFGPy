@@ -1,11 +1,16 @@
 from collections import OrderedDict
 from time import time
 
+import app_tree
+import domain_koza_apptree
+from fitness_cache import FitnessCache
 from utils import foldr
 from parsers import parse_typ, parse_ctx
 from app_tree import AppTree
 from typ import TypTerm
 from generator import Generator
+
+size_d = {}
 
 
 def fun_typ(arg_typs, result_typ):
@@ -40,9 +45,12 @@ physics_lib_defs = {
 
 # print(physics_lib_defs[plus_sym](2)(8))
 
+def get_code_str(lambda_head, tree):
+    return 'lambda %s : %s' % (','.join(lambda_head), tree.eval_str())
+
 
 def compile_tree(lib_defs, lambda_head, tree):
-    code_str = 'lambda %s : %s' % (','.join(lambda_head), tree.eval_str())
+    code_str = get_code_str(lambda_head, tree)
     return eval(code_str, lib_defs)
 
 
@@ -116,6 +124,39 @@ def make_simple_motion_domain(lib_defs):
     optimal_size = 19
 
     return title, goal, gamma, optimal_size
+
+
+def domain_physics(domain_maker=make_simple_motion_domain):
+    title, goal, gamma, optimal_size = domain_maker(physics_lib_defs)
+    cache = FitnessCache()
+    inputs = make_tuple_samples(len(motion_lambda_head), -100, 100, 9)
+
+    def fitness(individual_app_tree):
+        global size_d
+        size = individual_app_tree.count_nodes()[app_tree.Leaf]
+        size_d[size] = size_d.get(size, 0) + 1
+
+        s = get_code_str(motion_lambda_head, individual_app_tree)
+
+        cres = cache.d.get(s, None)
+        if cres is not None:
+            return cres
+        fun = eval(s, physics_lib_defs)
+        err = compute_error_on_inputs(inputs, motion_model, fun)
+        score = 1 / (1 + err)
+
+        cache.update(s, score)
+        return score
+
+    return goal, gamma, fitness, (lambda: len(cache)), cache
+
+
+def make_env_app_tree(smart_physics=False, **kwargs):
+    raw = lambda: domain_physics()
+    if smart_physics:
+        raw = lambda: domain_physics(make_smart_motion_domain)
+
+    return domain_koza_apptree.make_env_app_tree(get_raw_domain=raw, early_end_limit=1, **kwargs)
 
 
 def make_smart_motion_domain(lib_defs):
@@ -242,7 +283,7 @@ def test_domain(domain_maker, lib_defs, max_k=42, show_examples=True, skip_zeros
             if num > 0 and show_examples:
                 example_tree = gen.gen_one(k, goal)
                 err = motion_error(example_tree)
-                print('\t\t\t err=', err, '\t', example_tree)
+                print('\t\t\t err=', err)  # , '\t', example_tree)
             else:
                 print()
 
@@ -261,7 +302,7 @@ def test_domain(domain_maker, lib_defs, max_k=42, show_examples=True, skip_zeros
 def test_domains():
     opts = {
         'lib_defs': physics_lib_defs,
-        'max_k': 58,
+        'max_k': 30,
         'show_examples': True,
         'skip_zeros': True
     }

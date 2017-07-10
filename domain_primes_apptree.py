@@ -78,6 +78,6 @@ def domain_primes():
     return goal, gamma, fitness, (lambda: len(cache)), cache
 
 
-def make_env_app_tree():
+def make_env_app_tree(**kwargs):
     return domain_koza_apptree.make_env_app_tree(get_raw_domain=domain_primes,
-                                                 early_end_limit=None)
+                                                 early_end_limit=None, **kwargs)

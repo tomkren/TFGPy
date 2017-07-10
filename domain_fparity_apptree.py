@@ -96,6 +96,6 @@ def domain_parity(SIZE):
     return goal, gamma, fitness, (lambda: len(cache)), cache
 
 
-def make_env_app_tree(SIZE=6):
+def make_env_app_tree(SIZE=6, **kwargs):
     return domain_koza_apptree.make_env_app_tree(get_raw_domain=lambda: domain_parity(SIZE),
-                                                 early_end_limit=2 ** SIZE)
+                                                 early_end_limit=2 ** SIZE, **kwargs)
