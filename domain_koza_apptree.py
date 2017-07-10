@@ -98,7 +98,6 @@ def make_env_app_tree(get_raw_domain=regression_domain_koza, early_end_limit=1.0
 
     @utils.pp_function('fitness()')
     def fitness(node):
-        print(repr(node))
         assert isinstance(node, UFTNode)
         # make sure we only run fitness on finished,
         # fully typed trees
@@ -118,11 +117,13 @@ def make_env_app_tree(get_raw_domain=regression_domain_koza, early_end_limit=1.0
 
         if smart:
             if node.uf_tree.is_finished():
-                return node.uf_tree
+                return node
         else:
             if node.uf_tree.typ is not None:
+                assert False
+                # sem to nikdy nedojde???
                 assert node.uf_tree.is_finished()
-                return node.uf_tree
+                return node
 
         # TODO this branch is not done
         # it is possible to do the same as in MacxKTNode
@@ -144,12 +145,9 @@ def make_env_app_tree(get_raw_domain=regression_domain_koza, early_end_limit=1.0
         # in such case, we should not even be called
         assert ret.uf_tree is not None
         if smart:
-            print(repr(node.uf_tree))
-            print(node.uf_tree.eval_str())
-            assert node.uf_tree.is_finished()
+            assert ret.uf_tree.is_finished()
         else:
             assert ret.uf_tree.typ is not None
-
         return ret
 
     @utils.pp_function('is_finished()')
@@ -164,7 +162,8 @@ def make_env_app_tree(get_raw_domain=regression_domain_koza, early_end_limit=1.0
                     # if gen.get_num_uf(node.uf_tree, k, goal)
                     ]
         if isinstance(node, MaxKTNode):
-            return [MaxKTNode(c, node.max_k) for c in gen.uf_tree_successors_up_to(node.uf_tree, node.max_k, goal)]
+            ret = [MaxKTNode(c, node.max_k) for c in gen.uf_tree_successors_up_to(node.uf_tree, node.max_k, goal)]
+            return ret
         if isinstance(node, UFTNode):
             return [UFTNode(c, node.k) for c in gen.uf_tree_successors(node.uf_tree, node.k, goal)]
         assert False

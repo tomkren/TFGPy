@@ -285,6 +285,19 @@ class Generator:
         else:
             return None
 
+    # TODO za odmenu refaktor
+    def gen_one_uf_smart_up_to(self, uf_tree, max_k):
+        min_k = uf_tree.count_min_k()
+        candidate_ks = list(range(min_k, max_k + 1))
+        random.shuffle(candidate_ks)
+
+        while candidate_ks:
+            k = candidate_ks.pop()
+            ret = self.gen_one_uf_smart(uf_tree, k)
+            if ret is not None:
+                return ret, k
+        return None
+
     def gen_one_uf_up_to(self, uf_tree, max_k, typ):
         min_k = uf_tree.count_min_k()
         candidate_ks = list(range(min_k, max_k + 1))
@@ -292,9 +305,9 @@ class Generator:
 
         while candidate_ks:
             k = candidate_ks.pop()
-            ret = self.gen_one_random_uf(uf_tree, k, typ, 0)
+            ret = self.gen_one_uf(uf_tree, k, typ)
             if ret is not None:
-                return ret[0], k
+                return ret, k
         return None
 
     def gen_one_uf(self, uf_tree, k, typ):
@@ -543,6 +556,9 @@ class Generator:
 
 
 class GeneratorSmart(Generator):
+    def gen_one_uf_up_to(self, uf_tree, max_k, typ):
+        return self.gen_one_uf_smart_up_to(uf_tree, max_k)
+
     def gen_one_uf(self, uf_tree, k, typ):
         return self.gen_one_uf_smart(uf_tree, k)
 
