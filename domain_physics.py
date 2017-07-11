@@ -81,15 +81,19 @@ def fake_model(x0, v0, a, t):
 
 def compute_error_on_inputs(inputs, true_model, indiv_model):
     err = 0.0
+    size = 0
     for xs in inputs:
         ys_true = true_model(*xs)
         ys_indi = indiv_model(*xs)
         for i, y_true in enumerate(ys_true):
             err += abs(y_true - ys_indi[i])
-    return err
+            size += 1
+
+    assert size
+    return err / size
 
 
-def error(lib_defs, lambda_head, tree, begin=-100, end=100, num_vals=9):
+def error(lib_defs, lambda_head, tree, begin=0, end=100, num_vals=9):
     if isinstance(tree, AppTree):
         indiv_model = compile_tree(lib_defs, lambda_head, tree)
     elif callable(tree):
@@ -129,7 +133,7 @@ def make_simple_motion_domain(lib_defs):
 def domain_physics(domain_maker=make_simple_motion_domain):
     title, goal, gamma, optimal_size = domain_maker(physics_lib_defs)
     cache = FitnessCache()
-    inputs = make_tuple_samples(len(motion_lambda_head), -100, 100, 9)
+    inputs = make_tuple_samples(len(motion_lambda_head), 0, 100, 9)
 
     def fitness(individual_app_tree):
         global size_d
