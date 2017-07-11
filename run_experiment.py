@@ -70,6 +70,19 @@ def print_k_histogram(domain):
     print('\n'.join("%s = %s" % (a, b) for a, b in sorted(domain.size_d.items())))
 
 
+def construct_root_node(args, env):
+    if args.app_tree == APP_T_CHOOSE_K:
+        root = ChooseKTNode(uf_factory(env), args.k)
+    elif args.app_tree == APP_T_FIXED_K:
+        root = UFTNode(uf_factory(env), args.k)
+    elif args.app_tree == APP_T_MAX_K:
+        root = MaxKTNode(uf_factory(env), args.k)
+    elif args.stack:
+        root = StackNode([])
+    else:
+        assert False
+    return root
+
 if __name__ == "__main__":
     args = parse_args()
     print(args)
@@ -114,17 +127,7 @@ if __name__ == "__main__":
             evals_before = env.count_evals()
             assert not evals_before
             time_before = time.time()
-            if args.app_tree == APP_T_CHOOSE_K:
-                root = ChooseKTNode(uf_factory(env), args.k)
-            elif args.app_tree == APP_T_FIXED_K:
-                root = UFTNode(uf_factory(env), args.k)
-            elif args.app_tree == APP_T_MAX_K:
-                root = MaxKTNode(uf_factory(env), args.k)
-            elif args.stack:
-                root = StackNode([])
-            else:
-                assert False
-
+            root = construct_root_node(args, env)
             indiv = nested_mc_search(root,
                                      max_level=args.nmcs_level,
                                      fitness=env.fitness,
@@ -148,17 +151,7 @@ if __name__ == "__main__":
             env = make_env()
             evals_before = env.count_evals()
             time_before = time.time()
-            if args.app_tree == APP_T_CHOOSE_K:
-                root = ChooseKTNode(uf_factory(env), args.k)
-            elif args.app_tree == APP_T_FIXED_K:
-                root = UFTNode(uf_factory(env), args.k)
-            elif args.app_tree == APP_T_MAX_K:
-                root = MaxKTNode(uf_factory(env), args.k)
-            elif args.stack:
-                root = StackNode([])
-            else:
-                assert False
-
+            root = construct_root_node(args, env)
             mct_root = MCTNode(root)
             mct_search(mct_root, expand_visits=args.mcts_expand, num_steps=args.mcts_num_steps,
                        fitness=env.fitness,
