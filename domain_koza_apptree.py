@@ -169,16 +169,28 @@ def make_env_app_tree(get_raw_domain=regression_domain_koza, early_end_limit=1.0
         assert False
 
     @utils.pp_function('advance()')
-    def advance(node, finished_tree):
+    def advance(node, finished_node):
         assert isinstance(node, UFTNode) or isinstance(node, ChooseKTNode)
-        assert isinstance(finished_tree, UFTNode)
-        new_uf_tree = dfs_advance_skeleton(node.uf_tree, finished_tree.uf_tree)
+        assert isinstance(finished_node, UFTNode)
+        if not smart:
+            new_uf_tree = dfs_advance_skeleton(node.uf_tree, finished_node.uf_tree)
+        else:
+            new_uf_tree = None
+            succs = node.uf_tree.successors_typed(gen.gamma, 0)
+            if succs:
+                for t, _, __ in succs:
+                    if t.is_skeleton_of(finished_node.uf_tree):
+                        assert t is not None
+                        new_uf_tree = t
+                        break
+                assert new_uf_tree is not None
+
         if new_uf_tree is None:
             return None
         if isinstance(node, MaxKTNode):
             return MaxKTNode(new_uf_tree, node.max_k)
         if isinstance(node, UFTNode):
-            return UFTNode(new_uf_tree, finished_tree.k)
+            return UFTNode(new_uf_tree, finished_node.k)
 
     env.goal = goal
     env.fitness = fitness

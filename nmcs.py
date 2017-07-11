@@ -1,5 +1,4 @@
 from functools import wraps
-
 import tracer_deco
 from app_tree import App, UnfinishedLeaf, Leaf, UNFINISHED_APP
 
@@ -12,10 +11,10 @@ from app_tree import App, UnfinishedLeaf, Leaf, UNFINISHED_APP
 #       International Journal on Artificial Intelligence Tools 22.01 (2013): 1250035. APA
 
 
-@tracer_deco.tracer_deco(force_enable=True)
+#@tracer_deco.tracer_deco(force_enable=True)
 def nested_mc_search(root_tree, max_level, fitness, finish, is_finished, successors, advance,
                      early_end_test=lambda s: False):
-    # @tracer_deco(print_from_arg=0)
+    #@tracer_deco.tracer_deco(print_from_arg=0)
     def nested_mc_search_raw(level, tree):
         # if the input tree is already finished, evaluate it
         if level == 0 or is_finished(tree):
