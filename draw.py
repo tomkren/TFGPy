@@ -1,4 +1,9 @@
 from PIL import Image, ImageDraw
+from collections import OrderedDict
+
+from parsers import parse_typ, parse_ctx, fun_typ
+from generator import Generator
+
 
 H, V, Q, C = 'h', 'v', 'q', 'c'
 
@@ -28,6 +33,47 @@ def main():
 
     for i, code in enumerate(codes):
         render_to_file('imgs/%03d.png' % (i+1), img_size, code)
+
+    max_k = 5
+    test_domain(make_domain, max_k, img_size)
+
+
+def make_domain():
+    t_img = parse_typ('I')  # simple Image type
+
+    t_op2 = fun_typ((t_img, t_img), t_img)  # Simple binary operation
+    t_op4 = fun_typ((t_img, t_img, t_img, t_img), t_img)  # Simple tetra operation
+
+    goal = t_img
+    gamma = parse_ctx(OrderedDict([
+        (H, t_op2),
+        (V, t_op2),
+        (Q, t_op4),
+        (W, t_img),
+        (B, t_img)
+    ]))
+
+    return goal, gamma
+
+
+def test_domain(domain_maker, max_k, img_size):
+    goal, gamma = domain_maker()
+
+    gen = Generator(gamma)
+
+    for k in range(1, max_k + 1):
+        num = gen.get_num(k, goal)
+
+        if num > 0:
+
+            example_tree = gen.gen_one(k, goal)
+            img_code = example_tree.to_sexpr_json()
+
+            print(k, ": num =", num)
+            print('\t', "example_tree   =", example_tree)
+            print('\t', "example s-expr =", img_code)
+
+            render_to_file('imgs/gen/k%d.png' % k, img_size, img_code)
 
 
 def render(code, zoom, draw):

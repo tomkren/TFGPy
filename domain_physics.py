@@ -4,20 +4,11 @@ from time import time
 import app_tree
 import domain_koza_apptree
 from fitness_cache import FitnessCache
-from utils import foldr
-from parsers import parse_typ, parse_ctx
+from parsers import parse_typ, parse_ctx, fun_typ
 from app_tree import AppTree
-from typ import TypTerm
 from generator import Generator
 
 size_d = {}
-
-
-def fun_typ(arg_typs, result_typ):
-    def f(x, acc):
-        return TypTerm.make_arrow(parse_typ(x), parse_typ(acc))
-
-    return foldr(f, result_typ, arg_typs)
 
 
 x0_sym = 'x0'
