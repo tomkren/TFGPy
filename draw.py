@@ -1,9 +1,11 @@
 from PIL import Image, ImageDraw
 from collections import OrderedDict
+from time import time
+import imagehash
 
 from parsers import parse_typ, parse_ctx, fun_typ
 from generator import Generator
-
+from generator_static import ts
 
 H, V, Q, C = 'h', 'v', 'q', 'c'
 
@@ -32,9 +34,9 @@ def main():
     codes = [code_001, code_002, elephant]
 
     for i, code in enumerate(codes):
-        render_to_file('imgs/%03d.png' % (i+1), img_size, code)
+        render_to_file('imgs/handmade/%03d.png' % (i+1), img_size, code)
 
-    max_k = 5
+    max_k = 9  # 2348
     test_domain(make_domain, max_k, img_size)
 
 
@@ -57,23 +59,57 @@ def make_domain():
 
 
 def test_domain(domain_maker, max_k, img_size):
-    goal, gamma = domain_maker()
+    start_time = time()
 
+    goal, gamma = domain_maker()
     gen = Generator(gamma)
+
+    img_hashes = {}
+
+    i = 1
 
     for k in range(1, max_k + 1):
         num = gen.get_num(k, goal)
 
+        print('size =', k, "-> num =", num)
+
         if num > 0:
 
-            example_tree = gen.gen_one(k, goal)
-            img_code = example_tree.to_sexpr_json()
+            # example_tree = gen.gen_one(k, goal)
 
-            print(k, ": num =", num)
-            print('\t', "example_tree   =", example_tree)
-            print('\t', "example s-expr =", img_code)
+            all_trees = ts(gamma, k, goal, 0)
 
-            render_to_file('imgs/gen/k%d.png' % k, img_size, img_code)
+            for tree_data in all_trees:
+
+                tree = tree_data.tree
+
+                img_code = tree.to_sexpr_json()
+
+                im = render_to_img(img_size, img_code)
+                img_hash = imagehash.phash(im)
+
+                if img_hash not in img_hashes:
+                    img_hashes[img_hash] = img_code
+                    root_sym = root_symbol(img_code)
+                    im.save('imgs/gen/%04d-%s.png' % (i, root_sym), 'PNG')
+
+                    print('\t', i)
+                    print('\t\t example_tree   =', tree)
+                    print('\t\t example s-expr =', img_code)
+                    print('\t\t img_hash =', img_hash)
+
+                    i += 1
+
+    delta_time = time() - start_time
+    print()
+    print('test_domain(..) took %.2f seconds.' % delta_time)
+
+
+def root_symbol(code):
+    if isinstance(code, list):
+        return root_symbol(code[0])
+    else:
+        return code
 
 
 def render(code, zoom, draw):
@@ -146,10 +182,7 @@ def decode_color(color_code):
     return color
 
 
-def render_to_file(filename, img_size, code):
-
-    print(code)
-
+def render_to_img(img_size, code):
     im = Image.new('RGB', img_size)
 
     zoom = (0, 0, im.size[0], im.size[1])
@@ -158,6 +191,12 @@ def render_to_file(filename, img_size, code):
     render(code, zoom, draw)
 
     del draw
+    return im
+
+
+def render_to_file(filename, img_size, code):
+
+    im = render_to_img(img_size, code)
     im.save(filename, 'PNG')
 
 

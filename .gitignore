@@ -1,6 +1,9 @@
 .idea/
 logs/
 
+/imgs/gen/
+/imgs/handmade/
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
