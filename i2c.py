@@ -16,8 +16,11 @@ def main():
     path = 'imgs/gen'
     dim_size = 32
     img_size = (dim_size, dim_size)
-    hash_size = 32
-    highfreq_factor = 4
+
+    hash_opts = {
+        'hash_size': 32,
+        'highfreq_factor': 4
+    }
 
     gen_opts_full = {
         'max_tree_size': 25,
@@ -25,7 +28,11 @@ def main():
         'sample_method': {
             'name': 'simple_sampling',
             'num_attempts': 10000
-        }
+        },
+        'domain_maker': make_family_1,
+        'hash_opts': hash_opts,
+        'img_size': img_size,
+        'path': path
     }
 
     gen_opts_test = {
@@ -34,22 +41,85 @@ def main():
         'sample_method': {
             'name': 'simple_sampling',
             'num_attempts': 100
-        }
+        },
+        'domain_maker': make_family_1,
+        'hash_opts': hash_opts,
+        'img_size': img_size,
+        'path': path
     }
 
-    domain_maker = make_family_1
-
-    generate_dataset(path, domain_maker, gen_opts_test, img_size, hash_size, highfreq_factor)
+    generate_dataset(gen_opts_test)
 
 
-def generate_dataset(path, domain_maker, gen_opts, img_size, hash_size=8, highfreq_factor=4):
+def generate_dataset(gen_opts):
     start_time = time()
 
-    max_tree_size = gen_opts['max_tree_size']
+    gen_opts['paths'] = init_files(gen_opts['path'])
 
     exhaustive_generating_limit = gen_opts['exhaustive_generating_limit']
     sample_method = gen_opts['sample_method']
     sample_method_name = sample_method['name']
+
+    domain_maker = gen_opts['domain_maker']
+    goal, gamma = domain_maker()
+    gen = Generator(gamma)
+
+    img_hashes = {}
+    stats_for_sizes = []
+    next_img_id = 1
+
+    max_tree_size = gen_opts['max_tree_size']
+    for tree_size in range(1, max_tree_size + 1):
+        num_trees = gen.get_num(tree_size, goal)
+
+        next_img_id_start = next_img_id
+
+        print('tree_size =', tree_size, "-> num_trees =", num_trees)
+
+        if num_trees > 0:
+
+            if num_trees < exhaustive_generating_limit:
+
+                for tree_data in ts(gamma, tree_size, goal, 0):
+
+                    tree = tree_data.tree
+                    next_img_id = generate_step(gen_opts, tree, img_hashes, tree_size, next_img_id)
+
+            elif sample_method_name == 'simple_sampling':
+
+                num_attempts = sample_method['num_attempts']
+
+                for i_sample in range(num_attempts):
+
+                    tree = gen.gen_one(tree_size, goal)
+                    next_img_id = generate_step(gen_opts, tree, img_hashes, tree_size, next_img_id)
+
+            else:
+                print('WARNING: Using unsupported sampling method.')
+
+            new_for_this_size = next_img_id - next_img_id_start
+
+            new_to_all_percent = (100.0 * new_for_this_size) / num_trees
+            stats_for_sizes.append((tree_size, num_trees, new_for_this_size, new_to_all_percent))
+
+    # save stats and we are done ..
+    num_generated_trees = next_img_id - 1
+    delta_time = time() - start_time
+    save_stats(gen_opts, stats_for_sizes, num_generated_trees, delta_time)
+
+
+def generate_step(gen_opts, tree, img_hashes, tree_size, next_img_id):
+    img_code = tree.to_sexpr_json()
+    im, img_hash = render_to_img_with_phash(gen_opts, img_code)
+    if img_hash not in img_hashes:
+        img_hashes[img_hash] = tree_size
+        save_generated_tree_data(gen_opts, next_img_id, im, img_code, tree, tree_size)
+        return next_img_id + 1
+    else:
+        return next_img_id
+
+
+def init_files(path):
 
     if not path.endswith('/'):
         path += '/'
@@ -69,86 +139,11 @@ def generate_dataset(path, domain_maker, gen_opts, img_size, hash_size=8, highfr
     open(paths['prefix'], 'w').close()
     open(paths['roots'], 'w').close()
 
-    goal, gamma = domain_maker()
-    gen = Generator(gamma)
-
-    img_hashes = {}
-    stats_for_sizes = []
-
-    next_img_id = 1
-
-    for tree_size in range(1, max_tree_size + 1):
-        num = gen.get_num(tree_size, goal)
-
-        print('tree_size =', tree_size, "-> num =", num)
-
-        if num > 0:
-
-            new_for_this_size = 0
-
-            if num < exhaustive_generating_limit:
-
-                for tree_data in ts(gamma, tree_size, goal, 0):
-
-                    tree = tree_data.tree
-
-                    next_img_id, new_for_this_size = generate_step(tree, img_hashes, img_size, hash_size, highfreq_factor, tree_size, (next_img_id, new_for_this_size), paths)
-
-                    # img_code = tree.to_sexpr_json()
-                    # im, img_hash = render_to_img_with_phash(img_size, img_code, hash_size, highfreq_factor)
-                    # if img_hash not in img_hashes:
-                    #     img_hashes[img_hash] = tree_size
-                    #     save_generated_tree_data(next_img_id, im, img_code, tree, tree_size, paths)
-                    #     next_img_id += 1
-                    #     new_for_this_size += 1
-
-            elif sample_method_name == 'simple_sampling':
-
-                num_attempts = sample_method['num_attempts']
-
-                for i_sample in range(num_attempts):
-
-                    tree = gen.gen_one(tree_size, goal)
-
-                    next_img_id, new_for_this_size = generate_step(tree, img_hashes, img_size, hash_size, highfreq_factor, tree_size, (next_img_id, new_for_this_size), paths)
-
-                    # img_code = tree.to_sexpr_json()
-                    # im, img_hash = render_to_img_with_phash(img_size, img_code, hash_size, highfreq_factor)
-                    # if img_hash not in img_hashes:
-                    #     img_hashes[img_hash] = tree_size
-                    #     save_generated_tree_data(next_img_id, im, img_code, tree, tree_size, paths)
-                    #     next_img_id += 1
-                    #     new_for_this_size += 1
-
-            else:
-                print('WARNING: Using unsupported sampling method.')
-
-            new_to_all_percent = (100.0 * new_for_this_size) / num
-            stats_for_sizes.append((tree_size, num, new_for_this_size, new_to_all_percent))
-
-    # save stats and we are done ..
-    num_generated_trees = next_img_id - 1
-    delta_time = time() - start_time
-    save_stats(gen_opts, stats_for_sizes, num_generated_trees, delta_time, img_size, hash_size, highfreq_factor, paths)
+    return paths
 
 
-def generate_step(tree, img_hashes, img_size, hash_size, highfreq_factor, tree_size, gen_state, paths):
-
-    img_code = tree.to_sexpr_json()
-    im, img_hash = render_to_img_with_phash(img_size, img_code, hash_size, highfreq_factor)
-
-    if img_hash not in img_hashes:
-        img_hashes[img_hash] = tree_size
-
-        next_img_id, new_for_this_size = gen_state
-        save_generated_tree_data(next_img_id, im, img_code, tree, tree_size, paths)
-        return next_img_id + 1, new_for_this_size + 1
-
-    else:
-        return gen_state
-
-
-def save_generated_tree_data(img_id, im, img_code, tree, tree_size, paths):
+def save_generated_tree_data(gen_opts, img_id, im, img_code, tree, tree_size):
+    paths = gen_opts['paths']
 
     im.save(paths['img_pattern'] % img_id, 'PNG')
 
@@ -159,23 +154,23 @@ def save_generated_tree_data(img_id, im, img_code, tree, tree_size, paths):
     append_line(paths['prefix'], prefix_code)
     append_line(paths['jsons'], str(img_code))
 
-    print('%-8d->' % img_id, paths['img_pattern'] % img_id, "tree_size=%d" % tree_size)
+    print('%-7d->' % img_id, paths['img_pattern'] % img_id, "tree_size=%d" % tree_size)
     print('\t\ttree =', tree)
     print('\t\ts-expr =', img_code)
     print('\t\tprefix =', prefix_code)
 
 
-def save_stats(gen_opts, stats_for_sizes, num_generated_trees, delta_time, img_size, hash_size, highfreq_factor, paths):
+def save_stats(gen_opts, stats_for_sizes, num_generated_trees, delta_time):
     stats = 'gen_opts=%s\n' % str(gen_opts)
     stats += 'Num Generated Images: %d\n' % num_generated_trees
     stats += 'Generating Time: %.2f s\n' % delta_time
-    stats += 'Image size: %d×%d\n' % img_size
-    stats += 'pHash params (size, highfreq_factor): %d, %d\n' % (hash_size, highfreq_factor)
 
     stats += 'Stats for Sizes:\n'
     stats += '%-15s%-20s%-20s%s\n' % ('Tree size', 'Num of all trees', 'New trees', 'New/All %')
     for o in stats_for_sizes:
         stats += '%-15d%-20d%-20d%.2f\n' % o
+
+    paths = gen_opts['paths']
 
     with open(paths['stats'], 'w') as stats_file:
         stats_file.write(stats)
@@ -344,15 +339,17 @@ def render_to_img(img_size, img_code):
     return im
 
 
-def render_to_img_with_phash(img_size, img_code, hash_size, highfreq_factor):
-    im = render_to_img(img_size, img_code)
-    img_hash = imagehash.phash(im, hash_size, highfreq_factor)
+def render_to_img_with_phash(gen_opts, img_code):
+    im = render_to_img(gen_opts['img_size'], img_code)
+
+    hash_opts = gen_opts['hash_opts']
+    img_hash = imagehash.phash(im, hash_opts['hash_size'], hash_opts['highfreq_factor'])
     # print('\t img_hash =', img_hash)
+
     return im, img_hash
 
 
 def render_to_file(filename, img_size, img_code):
-
     im = render_to_img(img_size, img_code)
     im.save(filename, 'PNG')
 
