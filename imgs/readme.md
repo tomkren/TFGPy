@@ -9,9 +9,19 @@ These images are intended for neural network experiments.
 
 - idea : concat more hashes ...
 
+- todo: enhance stats so that it appends during the run (header, body, footer approach)
+- todo: do stats dát tabulku s:
+        num_all_trees
+        num_samples
+        num_unique_trees
+        num_new_phash_images
+        asi % = num_new_phash_images / num_all_trees
+   
 
-
-
+max_tree_size -> num trees cumulative
+ 7 -> ~264
+ 9 -> ~2602
+ 11 -> ~28148
 
 
 ## Sampling generating possibilities ##
