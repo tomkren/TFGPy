@@ -1,7 +1,8 @@
-from PIL import Image, ImageDraw  # Using https://pillow.readthedocs.io
 from collections import OrderedDict
 from time import time
 import os
+import json
+from PIL import Image, ImageDraw  # Using https://pillow.readthedocs.io
 import imagehash  # Using https://pypi.python.org/pypi/ImageHash
 
 from parsers import parse_typ, parse_ctx, fun_typ
@@ -23,13 +24,13 @@ def main():
     }
 
     gen_opts_full = {
-        'max_tree_size': 25,
+        'max_tree_size': 51,
         'exhaustive_generating_limit': 250000,
         'sample_method': {
             'name': 'simple_sampling',
-            'num_attempts': 10000
+            'num_attempts': 20000
         },
-        'domain_maker': make_family_1,
+        'domain_maker': 'family_1',
         'hash_opts': hash_opts,
         'img_size': img_size,
         'path': path
@@ -42,33 +43,34 @@ def main():
             'name': 'simple_sampling',
             'num_attempts': 100
         },
-        'domain_maker': make_family_1,
+        'domain_maker': 'family_1',
         'hash_opts': hash_opts,
         'img_size': img_size,
         'path': path
     }
 
-    generate_dataset(gen_opts_test)
+    # generate_dataset(gen_opts_test)
+    generate_dataset(gen_opts_full)
 
 
 def generate_dataset(gen_opts):
     start_time = time()
 
     gen_opts['paths'] = init_files(gen_opts['path'])
+    save_stats_header(gen_opts)
 
-    exhaustive_generating_limit = gen_opts['exhaustive_generating_limit']
-    sample_method = gen_opts['sample_method']
-    sample_method_name = sample_method['name']
-
-    domain_maker = gen_opts['domain_maker']
+    domain_maker = family_lib[gen_opts['domain_maker']]
     goal, gamma = domain_maker()
     gen = Generator(gamma)
 
     img_hashes = {}
-    stats_for_sizes = []
     next_img_id = 1
 
     max_tree_size = gen_opts['max_tree_size']
+    exhaustive_generating_limit = gen_opts['exhaustive_generating_limit']
+    sample_method = gen_opts['sample_method']
+    sample_method_name = sample_method['name']
+
     for tree_size in range(1, max_tree_size + 1):
         num_trees = gen.get_num(tree_size, goal)
 
@@ -80,32 +82,40 @@ def generate_dataset(gen_opts):
 
             if num_trees < exhaustive_generating_limit:
 
+                gen_method_name = 'exhaustive'
+                num_attempts = num_trees
+
                 for tree_data in ts(gamma, tree_size, goal, 0):
 
                     tree = tree_data.tree
                     next_img_id = generate_step(gen_opts, tree, img_hashes, tree_size, next_img_id)
 
-            elif sample_method_name == 'simple_sampling':
-
-                num_attempts = sample_method['num_attempts']
-
-                for i_sample in range(num_attempts):
-
-                    tree = gen.gen_one(tree_size, goal)
-                    next_img_id = generate_step(gen_opts, tree, img_hashes, tree_size, next_img_id)
-
             else:
-                print('WARNING: Using unsupported sampling method.')
+
+                gen_method_name = sample_method_name
+
+                if sample_method_name == 'simple_sampling':
+
+                    num_attempts = sample_method['num_attempts']
+
+                    for i_sample in range(num_attempts):
+
+                        tree = gen.gen_one(tree_size, goal)
+                        next_img_id = generate_step(gen_opts, tree, img_hashes, tree_size, next_img_id)
+
+                else:
+                    num_attempts = -1
+                    print('WARNING: Using unsupported sampling method.')
 
             new_for_this_size = next_img_id - next_img_id_start
 
-            new_to_all_percent = (100.0 * new_for_this_size) / num_trees
-            stats_for_sizes.append((tree_size, num_trees, new_for_this_size, new_to_all_percent))
+            save_stats_size_info(gen_opts, tree_size, num_trees, gen_method_name, num_attempts, new_for_this_size)
 
     # save stats and we are done ..
     num_generated_trees = next_img_id - 1
     delta_time = time() - start_time
-    save_stats(gen_opts, stats_for_sizes, num_generated_trees, delta_time)
+    save_stats_footer(gen_opts, num_generated_trees, delta_time)
+    print(gen_opts['stats'])
 
 
 def generate_step(gen_opts, tree, img_hashes, tree_size, next_img_id):
@@ -128,13 +138,14 @@ def init_files(path):
     ensure_dir(imgs_path)
 
     paths = {
-        'stats': path + 'stats.txt',
         'img_pattern': imgs_path + '%08d.png',
+        'stats': path + 'stats.md',
         'jsons': path + 'jsons.txt',
         'prefix': path + 'prefix.txt',
         'roots': path + 'roots.txt'
     }
 
+    open(paths['stats'], 'w').close()
     open(paths['jsons'], 'w').close()
     open(paths['prefix'], 'w').close()
     open(paths['roots'], 'w').close()
@@ -160,22 +171,37 @@ def save_generated_tree_data(gen_opts, img_id, im, img_code, tree, tree_size):
     print('\t\tprefix =', prefix_code)
 
 
-def save_stats(gen_opts, stats_for_sizes, num_generated_trees, delta_time):
-    stats = 'gen_opts=%s\n' % str(gen_opts)
-    stats += 'Num Generated Images: %d\n' % num_generated_trees
-    stats += 'Generating Time: %.2f s\n' % delta_time
+def save_stats_header(gen_opts):
+    stats = '# Stats #\n\n'
+    stats += '## gen_opts ##\n\n'
+    gen_opts_pretty_json = json.dumps(gen_opts, sort_keys=True, indent=2, separators=(',', ': '))
+    stats += '```json\n%s\n```\n\n' % gen_opts_pretty_json
+    stats += '## Stats for tree sizes ##\n\n'
+    row = 'Tree size', 'Num of all trees', 'Generating method', 'Attempts', 'New trees', 'New/Attempts %'
+    stats += '| %-9s | %-40s | %-17s | %-10s | %-10s | %-14s |\n' % row
+    stats += '| %s | %s | %s | %s | %s | %s |\n' % ('-'*9, '-'*40, '-'*17, '-'*10, '-'*10, '-'*14)
+    gen_opts['stats'] = ''
+    append_stats(gen_opts, stats)
 
-    stats += 'Stats for Sizes:\n'
-    stats += '%-15s%-20s%-20s%s\n' % ('Tree size', 'Num of all trees', 'New trees', 'New/All %')
-    for o in stats_for_sizes:
-        stats += '%-15d%-20d%-20d%.2f\n' % o
 
-    paths = gen_opts['paths']
+def save_stats_size_info(gen_opts, tree_size, num_trees, gen_method_name, num_attempts, new_for_this_size):
+    new_to_attempts_percent = (100.0 * new_for_this_size) / num_attempts
+    row = tree_size, num_trees, gen_method_name, num_attempts, new_for_this_size, new_to_attempts_percent
+    stats = '| %-9d | %-40d | %-17s | %-10d | %-10d | %-14.2f |\n' % row
+    append_stats(gen_opts, stats)
 
-    with open(paths['stats'], 'w') as stats_file:
+
+def save_stats_footer(gen_opts, num_generated_trees, delta_time):
+    stats = '\n## Final stats ##\n\n'
+    stats += '* Num Generated Images: %d\n' % num_generated_trees
+    stats += '* Generating Time: %.2f s\n' % delta_time
+    append_stats(gen_opts, stats)
+
+
+def append_stats(gen_opts, stats):
+    with open(gen_opts['paths']['stats'], 'a') as stats_file:
         stats_file.write(stats)
-
-    print('\n' + stats)
+    gen_opts['stats'] += stats
 
 
 def make_family_1():
@@ -195,6 +221,10 @@ def make_family_1():
 
     return goal, gamma
 
+
+family_lib = {
+    'family_1': make_family_1
+}
 
 H, V, Q, C = 'h', 'v', 'q', 'c'
 
