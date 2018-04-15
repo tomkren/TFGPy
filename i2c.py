@@ -42,17 +42,10 @@ def generate_dataset(path, domain_maker, max_tree_size, gen_opts, img_size, hash
         path += '/'
 
     imgs_path = path + 'imgs/'
-
     ensure_dir(imgs_path)
 
-    # img_filename_pat = imgs_path + '%07d.png'
-    stats_filename = path + 'stats.txt'
-
-    # jsons_filename = path + 'jsons.txt'
-    # prefix_filename = path + 'prefix.txt'
-    # roots_filename = path + 'roots.txt'
-
     paths = {
+        'stats': path + 'stats.txt',
         'img_pattern': imgs_path + '%08d.png',
         'jsons': path + 'jsons.txt',
         'prefix': path + 'prefix.txt',
@@ -97,21 +90,6 @@ def generate_dataset(path, domain_maker, max_tree_size, gen_opts, img_size, hash
 
                         save_generated_tree_data(i, im, img_code, tree, paths)
 
-                        # im.save(img_filename_pat % i, 'PNG')
-
-                        # root_sym = root_symbol(img_code)
-                        # prefix_code = to_prefix_notation(img_code)
-
-                        # append_line(roots_filename, root_sym)
-                        # append_line(prefix_filename, prefix_code)
-                        # append_line(jsons_filename, str(img_code))
-
-                        # print('\t', i)
-                        # print('\t\t example_tree   =', tree)
-                        # print('\t\t s-expr =', img_code)
-                        # print('\t\t prefix =', prefix_code)
-                        # print('\t\t img_hash =', img_hash)
-
                         i += 1
                         new_for_this_size += 1
             else:
@@ -126,20 +104,7 @@ def generate_dataset(path, domain_maker, max_tree_size, gen_opts, img_size, hash
     num_generated_trees = i - 1
     delta_time = time() - start_time
 
-    stats = 'Num Generated Images: %d\n' % num_generated_trees
-    stats += 'Generating Time: %.2f s\n' % delta_time
-    stats += 'Image size: %d×%d\n' % img_size
-    stats += 'pHash params (size, highfreq_factor): %d, %d\n' % (hash_size, highfreq_factor)
-
-    stats += 'Stats for Sizes:\n'
-    stats += '%-15s%-20s%-20s%s\n' % ('Tree size', 'Num of all trees', 'New trees', 'New/All %')
-    for o in stats_for_sizes:
-        stats += '%-15d%-20d%-20d%.2f\n' % o
-
-    with open(stats_filename, 'w') as stats_file:
-        stats_file.write(stats)
-
-    print('\n'+stats)
+    save_stats(stats_for_sizes, num_generated_trees, delta_time, img_size, hash_size, highfreq_factor, paths)
 
 
 def save_generated_tree_data(i, im, img_code, tree, paths):
@@ -157,6 +122,23 @@ def save_generated_tree_data(i, im, img_code, tree, paths):
     print('\t\ttree =', tree)
     print('\t\ts-expr =', img_code)
     print('\t\tprefix =', prefix_code)
+
+
+def save_stats(stats_for_sizes, num_generated_trees, delta_time, img_size, hash_size, highfreq_factor, paths):
+    stats = 'Num Generated Images: %d\n' % num_generated_trees
+    stats += 'Generating Time: %.2f s\n' % delta_time
+    stats += 'Image size: %d×%d\n' % img_size
+    stats += 'pHash params (size, highfreq_factor): %d, %d\n' % (hash_size, highfreq_factor)
+
+    stats += 'Stats for Sizes:\n'
+    stats += '%-15s%-20s%-20s%s\n' % ('Tree size', 'Num of all trees', 'New trees', 'New/All %')
+    for o in stats_for_sizes:
+        stats += '%-15d%-20d%-20d%.2f\n' % o
+
+    with open(paths['stats'], 'w') as stats_file:
+        stats_file.write(stats)
+
+    print('\n' + stats)
 
 
 def make_family_1():
