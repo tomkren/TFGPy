@@ -12,7 +12,7 @@ from generator_static import ts
 
 def main():
 
-    make_hand_crafted_examples((512, 512))  # Run quick example generation ..
+    save_hand_crafted_examples((512, 512))  # Run quick example generation ..
 
     path = 'imgs/gen'
     dim_size = 32
@@ -241,14 +241,33 @@ Colors = {
     Re: (255, 0, 0), Gr: (0, 255, 0), Bl: (0, 0, 255)
 }
 
+# TODO: generate automatically !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+arity_dict_family_1 = {
+    H: 2,
+    V: 2,
+    Q: 4,
+    W: 0,
+    B: 0,
 
-def make_hand_crafted_examples(img_size):
+    C: 3,
+    G: 0,
+    Re: 0,
+    Gr: 0,
+    Bl: 0
+}
+
+
+def make_hand_crafted_examples():
     code_001 = h(v(G, h(v(G, h(v(G, h(v(G, B), B)), B)), B)), B)
     code_002 = q(Re, Gr, Bl, q(Re, Gr, Bl, q(Re, Gr, Bl, q(Re, Gr, Bl, q(Re, Gr, Bl, q(Re, Gr, Bl, q(Re, Gr, Bl, q(Re, Gr, Bl, G))))))))
     elephant = q(G, q(q(W, W, q(G, G, B, G), W), W, G, W), q(W, G, q(G, G, G, q(W, W, G, W)), q(G, G, W, G)),
                 q(q(q(W, q(W, W, G, q(G, W, q(q(W, W, W, G), G, W, W), W)), W, G), G, W, W), W, q(W, W, q(W, W, G, W), W), W))
 
-    codes = [code_001, code_002, elephant]
+    return [code_001, code_002, elephant]
+
+
+def save_hand_crafted_examples(img_size):
+    codes = make_hand_crafted_examples()
 
     dir_path = 'imgs/handmade/'
     ensure_dir(dir_path)
@@ -285,6 +304,72 @@ def to_prefix_json(code):
         return sum([to_prefix_json(arg) for arg in code], [])
     else:
         return [code]
+
+
+def from_prefix_notation(prefix_notation_str, arity_dict, default_sym):
+    prefix_list = prefix_notation_str.split()
+    mismatch = compute_prefix_mismatch(prefix_list, arity_dict)
+
+    if mismatch < 0:
+        del prefix_list[mismatch:]  # Too many symbols, we cut off last -mismatch elements.
+    elif mismatch > 0:
+        prefix_list += [default_sym] * mismatch  # To few symbols, we add default symbols.
+
+    return from_prefix_list(prefix_list, arity_dict)
+
+
+def from_prefix_list(prefix_list, arity_dict):
+    stack = []
+    for sym in reversed(prefix_list):
+        arity = arity_dict[sym]
+        if arity == 0:
+            stack.append(sym)
+        else:
+            code = [sym]
+            for i in range(arity):
+                code.append(stack.pop())
+            stack.append(code)
+    return stack.pop()
+
+
+def compute_prefix_mismatch(prefix_list, arity_dict):
+
+    mismatch = 1  # Initially, we have one "open node" in the root.
+
+    for sym in prefix_list:
+
+        if sym not in arity_dict:
+            raise ValueError("Unsupported symbol '%s' in '%s'." % (sym, prefix_list))
+
+        arity = arity_dict[sym]
+        mismatch += arity - 1
+
+    return mismatch
+
+
+def from_prefix_notation_family_1(prefix_notation_str):
+    return from_prefix_notation(prefix_notation_str, arity_dict_family_1, W)
+
+
+def test_img_code(img_code):
+    prefix_code = to_prefix_notation(img_code)
+    test_code = from_prefix_notation_family_1(prefix_code)
+    if str(test_code) == str(img_code):
+        print('OK: %s' % test_code)
+    else:
+        raise ValueError('TEST FAILED!')
+
+
+def main_test():
+
+    print(from_prefix_notation_family_1("W"))
+    print(from_prefix_notation_family_1("B"))
+    print(from_prefix_notation_family_1("h"))
+    print(from_prefix_notation_family_1("h v B h B"))
+    print(from_prefix_notation_family_1("h v B h B W W W B B B"))
+
+    for code in make_hand_crafted_examples():
+        test_img_code(code)
 
 
 def render(code, zoom, draw):
@@ -386,3 +471,4 @@ def render_to_file(filename, img_size, img_code):
 
 if __name__ == '__main__':
     main()
+    # main_test()
