@@ -27,7 +27,7 @@ def main():
         'max_tree_size': 51,
         'exhaustive_generating_limit': 250000,
         'sample_method': {
-            'name': 'simple_sampling',
+            'name': 'fixed_attempts',
             'num_attempts': 20000
         },
         'domain_maker': 'family_1',
@@ -40,7 +40,7 @@ def main():
         'max_tree_size': 17,
         'exhaustive_generating_limit': 2500,
         'sample_method': {
-            'name': 'simple_sampling',
+            'name': 'fixed_attempts',
             'num_attempts': 100
         },
         'domain_maker': 'family_1',
@@ -49,8 +49,8 @@ def main():
         'path': path
     }
 
-    # generate_dataset(gen_opts_test)
-    generate_dataset(gen_opts_full)
+    generate_dataset(gen_opts_test)
+    # generate_dataset(gen_opts_full)
 
 
 def generate_dataset(gen_opts):
@@ -94,7 +94,7 @@ def generate_dataset(gen_opts):
 
                 gen_method_name = sample_method_name
 
-                if sample_method_name == 'simple_sampling':
+                if sample_method_name == 'fixed_attempts':
 
                     num_attempts = sample_method['num_attempts']
 
