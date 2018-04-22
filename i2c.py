@@ -2,8 +2,9 @@ from collections import OrderedDict
 from time import time
 import os
 import json
-from PIL import Image, ImageDraw  # Using https://pillow.readthedocs.io
+from PIL import Image, ImageDraw, ImageMath, ImageStat  # Using https://pillow.readthedocs.io
 import imagehash  # Using https://pypi.python.org/pypi/ImageHash
+import numpy as np
 
 from parsers import parse_typ, parse_ctx, fun_typ
 from generator import Generator
@@ -36,6 +37,19 @@ def main():
         'path': path
     }
 
+    gen_opts_requested = {
+        'max_tree_size': 13,
+        'exhaustive_generating_limit': 250000,
+        'sample_method': {
+            'name': 'fixed_attempts',
+            'num_attempts': 100000
+        },
+        'domain_maker': 'family_1',
+        'hash_opts': hash_opts,
+        'img_size': (128, 128),
+        'path': path
+    }
+
     gen_opts_test = {
         'max_tree_size': 17,
         'exhaustive_generating_limit': 2500,
@@ -49,8 +63,104 @@ def main():
         'path': path
     }
 
-    generate_dataset(gen_opts_test)
+    # generate_dataset(gen_opts_test)
     # generate_dataset(gen_opts_full)
+    generate_dataset(gen_opts_requested)
+
+
+def main_process_results():
+
+    dataset_id = '003'
+
+    results_dir_path = 'imgs/results/results_' + dataset_id + '/'
+
+    inputs_path = results_dir_path + 'dev_imgs.txt'
+    outputs_path = results_dir_path + 'prefixes_out.txt'
+    report_path = results_dir_path + 'report.html'
+
+    in_imgs_path = results_dir_path + 'imgs/'
+    out_imgs_path = results_dir_path + 'imgs_out/'
+
+    ensure_dir(out_imgs_path)
+    open(report_path, 'w').close()
+
+    worst_err = 0.0
+    sum_err = 0.0
+
+    # report = ''
+
+    i = 0
+    rows = []
+    num_absolute_matches = 0
+
+    with open(inputs_path) as f_in:
+        with open(outputs_path) as f_out:
+
+            # report += '<table border="1">\n'
+            # report += '<tr><th>input</th><th>output</th><th>error</th>\n'
+
+            while True:
+
+                in_line = f_in.readline().strip()
+                out_line = f_out.readline().strip()
+
+                if (not in_line) or (not out_line):
+                    break
+
+                corrected_code = from_prefix_notation_family_1(out_line)
+
+                in_img_path = in_imgs_path + in_line
+                out_img_path = out_imgs_path + in_line
+
+                input_im = Image.open(in_img_path)
+
+                if not os.path.isfile(out_imgs_path):
+                    render_to_file(out_img_path, input_im.size, corrected_code)
+
+                output_im = Image.open(out_img_path)
+
+                err = imgs_err(input_im, output_im)
+
+                sum_err += err
+                if err == 0.0:
+                    num_absolute_matches += 1
+                if err > worst_err:
+                    worst_err = err
+
+                in_img_html = '<img src="imgs/%s">' % in_line
+                out_img_html = '<img src="imgs_out/%s">' % in_line
+
+                rows.append((in_img_html, out_img_html, err))
+
+                # report += '<tr><td>%s</td><td>%s</td><td><pre>%.10f</pre></td></tr>\n'%(in_img_html,out_img_html,err)
+                print("%s -> %s ... %.10f" % (in_line, out_line, err))
+                i += 1
+
+            # report += '</table>\n'
+
+    stats = '\n'
+    stats += 'STATS:\n'
+    stats += 'Number of test instances: %d\n' % i
+    stats += 'Number of absolute matches: %d\n' % num_absolute_matches
+    stats += 'Percent absolute matches: %f\n' % (100.0 * num_absolute_matches / i)
+    stats += 'Average error: %.5f\n' % (sum_err / i)
+    stats += 'Worst error: %.10f\n' % worst_err
+
+    print(stats)
+    print('Generating report.html ...')
+
+    table = '<table border="1">\n'
+    table += '<tr><th>in</th><th>out</th><th>error</th>\n'
+    for row in sorted(rows, key=lambda r: -r[2]):
+        table += '<tr><td>%s</td><td>%s</td><td><pre>%.10f</pre></td></tr>\n' % row
+    table += '</table>\n'
+
+    report_stats = '<pre>%s</pre>' % stats
+
+    with open(report_path, 'w') as f_report:
+        f_report.write(report_stats + '<br><br>\n' + table)
+
+    print('Done.')
 
 
 def generate_dataset(gen_opts):
@@ -65,6 +175,7 @@ def generate_dataset(gen_opts):
 
     img_hashes = {}
     next_img_id = 1
+    attempt = 0
 
     max_tree_size = gen_opts['max_tree_size']
     exhaustive_generating_limit = gen_opts['exhaustive_generating_limit']
@@ -72,6 +183,8 @@ def generate_dataset(gen_opts):
     sample_method_name = sample_method['name']
 
     for tree_size in range(1, max_tree_size + 1):
+        one_size_start_time = time()
+
         num_trees = gen.get_num(tree_size, goal)
 
         next_img_id_start = next_img_id
@@ -88,7 +201,9 @@ def generate_dataset(gen_opts):
                 for tree_data in ts(gamma, tree_size, goal, 0):
 
                     tree = tree_data.tree
-                    next_img_id = generate_step(gen_opts, tree, img_hashes, tree_size, next_img_id)
+                    attempt += 1
+
+                    next_img_id = generate_step(gen_opts, tree, img_hashes, tree_size, next_img_id, attempt)
 
             else:
 
@@ -101,29 +216,32 @@ def generate_dataset(gen_opts):
                     for i_sample in range(num_attempts):
 
                         tree = gen.gen_one(tree_size, goal)
-                        next_img_id = generate_step(gen_opts, tree, img_hashes, tree_size, next_img_id)
+                        attempt += 1
+
+                        next_img_id = generate_step(gen_opts, tree, img_hashes, tree_size, next_img_id, attempt)
 
                 else:
                     num_attempts = -1
                     print('WARNING: Using unsupported sampling method.')
 
             new_for_this_size = next_img_id - next_img_id_start
+            one_size_delta_time = time() - one_size_start_time
 
-            save_stats_size_info(gen_opts, tree_size, num_trees, gen_method_name, num_attempts, new_for_this_size)
+            save_stats_size_info(gen_opts, tree_size, num_trees, gen_method_name, num_attempts, new_for_this_size, one_size_delta_time)
 
     # save stats and we are done ..
     num_generated_trees = next_img_id - 1
     delta_time = time() - start_time
-    save_stats_footer(gen_opts, num_generated_trees, delta_time)
+    save_stats_footer(gen_opts, num_generated_trees, attempt, delta_time)
     print(gen_opts['stats'])
 
 
-def generate_step(gen_opts, tree, img_hashes, tree_size, next_img_id):
+def generate_step(gen_opts, tree, img_hashes, tree_size, next_img_id, attempt):
     img_code = tree.to_sexpr_json()
     im, img_hash = render_to_img_with_phash(gen_opts, img_code)
     if img_hash not in img_hashes:
         img_hashes[img_hash] = tree_size
-        save_generated_tree_data(gen_opts, next_img_id, im, img_code, tree, tree_size)
+        save_generated_tree_data(gen_opts, next_img_id, im, img_code, tree, tree_size, attempt)
         return next_img_id + 1
     else:
         return next_img_id
@@ -153,7 +271,7 @@ def init_files(path):
     return paths
 
 
-def save_generated_tree_data(gen_opts, img_id, im, img_code, tree, tree_size):
+def save_generated_tree_data(gen_opts, img_id, im, img_code, tree, tree_size, attempt):
     paths = gen_opts['paths']
 
     im.save(paths['img_pattern'] % img_id, 'PNG')
@@ -165,10 +283,10 @@ def save_generated_tree_data(gen_opts, img_id, im, img_code, tree, tree_size):
     append_line(paths['prefix'], prefix_code)
     append_line(paths['jsons'], str(img_code))
 
-    print('%-7d->' % img_id, paths['img_pattern'] % img_id, "tree_size=%d" % tree_size)
-    print('\t\ttree =', tree)
-    print('\t\ts-expr =', img_code)
-    print('\t\tprefix =', prefix_code)
+    print('%-7d->' % img_id, paths['img_pattern'] % img_id, "attempt=%d" % attempt, "tree_size=%d" % tree_size)
+    # print('\t\ttree =', tree)
+    # print('\t\ts-expr =', img_code)
+    print('\t\ttree =', prefix_code)
 
 
 def save_stats_header(gen_opts):
@@ -177,24 +295,28 @@ def save_stats_header(gen_opts):
     gen_opts_pretty_json = json.dumps(gen_opts, sort_keys=True, indent=2, separators=(',', ': '))
     stats += '```json\n%s\n```\n\n' % gen_opts_pretty_json
     stats += '## Stats for tree sizes ##\n\n'
-    row = 'Tree size', 'Num of all trees', 'Generating method', 'Attempts', 'New trees', 'New/Attempts %'
-    stats += '| %-9s | %-40s | %-17s | %-10s | %-10s | %-14s |\n' % row
-    stats += '| %s | %s | %s | %s | %s | %s |\n' % ('-'*9, '-'*40, '-'*17, '-'*10, '-'*10, '-'*14)
+    row = 'Tree size', 'Num of all trees', 'Generating method', 'Attempts', 'New trees', 'New/Attempts %', 'Time'
+    stats += '| %-9s | %-40s | %-17s | %-10s | %-10s | %-14s | %-14s |\n' % row
+    stats += '| %s | %s | %s | %s | %s | %s | %s |\n' % ('-'*9, '-'*40, '-'*17, '-'*10, '-'*10, '-'*14, '-'*14)
     gen_opts['stats'] = ''
     append_stats(gen_opts, stats)
 
 
-def save_stats_size_info(gen_opts, tree_size, num_trees, gen_method_name, num_attempts, new_for_this_size):
+def save_stats_size_info(gen_opts, tree_size, num_trees, gen_method_name, num_attempts, new_for_this_size, time):
     new_to_attempts_percent = (100.0 * new_for_this_size) / num_attempts
-    row = tree_size, num_trees, gen_method_name, num_attempts, new_for_this_size, new_to_attempts_percent
-    stats = '| %-9d | %-40d | %-17s | %-10d | %-10d | %-14.2f |\n' % row
+    row = tree_size, num_trees, gen_method_name, num_attempts, new_for_this_size, new_to_attempts_percent, time
+    stats = '| %-9d | %-40d | %-17s | %-10d | %-10d | %-14.2f | %-14.2f |\n' % row
     append_stats(gen_opts, stats)
 
 
-def save_stats_footer(gen_opts, num_generated_trees, delta_time):
+def save_stats_footer(gen_opts, num_generated_trees, attempts, delta_time):
     stats = '\n## Final stats ##\n\n'
     stats += '* Num Generated Images: %d\n' % num_generated_trees
+    stats += '* Num Attempts: %d\n' % attempts
     stats += '* Generating Time: %.2f s\n' % delta_time
+    stats += '* Average attempt time: %f s\n' % (delta_time / attempts)
+    stats += '* Average new tree time: %f s\n' % (delta_time / num_generated_trees)
+
     append_stats(gen_opts, stats)
 
 
@@ -263,7 +385,9 @@ def make_hand_crafted_examples():
     elephant = q(G, q(q(W, W, q(G, G, B, G), W), W, G, W), q(W, G, q(G, G, G, q(W, W, G, W)), q(G, G, W, G)),
                 q(q(q(W, q(W, W, G, q(G, W, q(q(W, W, W, G), G, W, W), W)), W, G), G, W, W), W, q(W, W, q(W, W, G, W), W), W))
 
-    return [code_001, code_002, elephant]
+    simpler_elephant = q(G, q(W, W, G, W), q(W, G, q(G, G, G, W), q(G, G, W, G)), q(q(q(W, q(W, W, G, q(G, W, q(q(W, W, W, G), G, W, W), W)), W, G), G, W, W), W, q(W, W, W, W), W))
+
+    return [code_001, code_002, elephant, simpler_elephant]
 
 
 def save_hand_crafted_examples(img_size):
@@ -307,7 +431,7 @@ def to_prefix_json(code):
 
 
 def from_prefix_notation(prefix_notation_str, arity_dict, default_sym):
-    prefix_list = prefix_notation_str.split()
+    prefix_list = prefix_notation_str.strip().split()
     mismatch = compute_prefix_mismatch(prefix_list, arity_dict)
 
     if mismatch < 0:
@@ -360,6 +484,12 @@ def test_img_code(img_code):
         raise ValueError('TEST FAILED!')
 
 
+def main_test_sort():
+
+    for row in sorted([('abc', 12.1), ('cde', 120.1), ('efg', 1.21)], key=lambda r: -r[1]):
+        print(row)
+
+
 def main_test():
 
     print(from_prefix_notation_family_1("W"))
@@ -368,8 +498,56 @@ def main_test():
     print(from_prefix_notation_family_1("h v B h B"))
     print(from_prefix_notation_family_1("h v B h B W W W B B B"))
 
-    for code in make_hand_crafted_examples():
+    examples = make_hand_crafted_examples()
+
+    for code in examples:
         test_img_code(code)
+
+    img_size = (256, 256)
+    elephant = examples[2]
+    simpler_elephant = examples[3]
+
+    im1 = render_to_img(img_size, elephant)
+    im2 = render_to_img(img_size, simpler_elephant)
+
+    i1 = np.array(im1).astype(float)
+    i2 = np.array(im2).astype(float)
+
+    diff = np.abs(i1 - i2)
+    err = np.sum(diff) / (3 * img_size[0] * img_size[1] * 255)
+
+    print(float(err))
+
+    im1.show()
+    im2.show()
+
+    diff = ImageMath.eval("abs(a - b)", a=im1.convert('L'), b=im2.convert('L'))
+    diff.show()
+
+
+def robust_err(input_img_path, output_prefix_notation_str):
+    im1 = Image.open(input_img_path)
+    corrected_code = from_prefix_notation_family_1(output_prefix_notation_str)
+    im2 = render_to_img(im1.size, corrected_code)
+    return imgs_err(im1, im2)
+
+
+def codes_err(code1, code2, img_size):
+    im1 = render_to_img(img_size, code1)
+    im2 = render_to_img(img_size, code2)
+    return imgs_err(im1, im2)
+
+
+def imgs_err(im1, im2):
+    if im1.size != im2.size:
+        raise ValueError("Images must have the same size.")
+
+    i1 = np.array(im1).astype(float)
+    i2 = np.array(im2).astype(float)
+
+    diff = np.abs(i1 - i2)
+    err = np.sum(diff) / (3 * im1.size[0] * im1.size[1] * 255)
+    return float(err)
 
 
 def render(code, zoom, draw):
@@ -470,5 +648,6 @@ def render_to_file(filename, img_size, img_code):
 
 
 if __name__ == '__main__':
-    main()
+    # main()
     # main_test()
+    main_process_results()

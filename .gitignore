@@ -2,6 +2,7 @@
 logs/
 
 /imgs/gen/
+/imgs/results/
 /imgs/handmade/
 
 # Byte-compiled / optimized / DLL files
