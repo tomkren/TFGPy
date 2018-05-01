@@ -10,6 +10,26 @@ from parsers import parse_typ, parse_ctx, fun_typ
 from generator import Generator
 from generator_static import ts
 
+# import tensorflow as tf
+
+# from keras.models import Sequential
+# from keras.layers import Dense, Activation
+
+
+# def main_nn():
+#
+#     model = Sequential([
+#         Dense(32, input_shape=(784,)),
+#         Activation('relu'),
+#         Dense(10),
+#         Activation('softmax'),
+#     ])
+#
+#     # For a multi-class classification problem
+#     model.compile(optimizer='rmsprop',
+#                   loss='categorical_crossentropy',
+#                   metrics=['accuracy'])
+
 
 def main():
 
@@ -63,9 +83,9 @@ def main():
         'path': path
     }
 
-    # generate_dataset(gen_opts_test)
+    generate_dataset(gen_opts_test)
     # generate_dataset(gen_opts_full)
-    generate_dataset(gen_opts_requested)
+    # generate_dataset(gen_opts_requested)
 
 
 def main_process_results():
@@ -163,6 +183,37 @@ def main_process_results():
     print('Done.')
 
 
+def main_test_nn():
+    dataset_id = '003'
+    results_dir_path = 'imgs/results/results_' + dataset_id + '/'
+
+    dataset_path = results_dir_path + 'dataset/'
+    imgs_path = dataset_path + 'imgs/'
+    img_filenames_path = dataset_path + 'imgs.txt'
+    correct_classes_path = dataset_path + 'roots.txt'
+
+    prepare_nn_dataset(imgs_path, img_filenames_path, correct_classes_path)
+
+
+def prepare_nn_dataset(imgs_path, img_filenames_path, correct_classes_path):
+
+    def step(img_filename, correct_class):
+        print("%s%s -> %s" % (imgs_path, img_filename, correct_class))
+
+    zip_files(img_filenames_path, correct_classes_path, step)
+
+
+def zip_files(path1, path2, f):
+    with open(path1) as f1:
+        with open(path2) as f2:
+            while True:
+                line1 = f1.readline().strip()
+                line2 = f2.readline().strip()
+                if (not line1) or (not line2):
+                    break
+                f(line1, line2)
+
+
 def generate_dataset(gen_opts):
     start_time = time()
 
@@ -255,14 +306,19 @@ def init_files(path):
     imgs_path = path + 'imgs/'
     ensure_dir(imgs_path)
 
+    img_pattern_short = '%08d.png'
+
     paths = {
-        'img_pattern': imgs_path + '%08d.png',
+        'img_pattern_short': img_pattern_short,
+        'img_pattern': imgs_path + img_pattern_short,
+        'imgs': path + 'imgs.txt',
         'stats': path + 'stats.md',
         'jsons': path + 'jsons.txt',
         'prefix': path + 'prefix.txt',
         'roots': path + 'roots.txt'
     }
 
+    open(paths['imgs'], 'w').close()
     open(paths['stats'], 'w').close()
     open(paths['jsons'], 'w').close()
     open(paths['prefix'], 'w').close()
@@ -279,6 +335,7 @@ def save_generated_tree_data(gen_opts, img_id, im, img_code, tree, tree_size, at
     root_sym = root_symbol(img_code)
     prefix_code = to_prefix_notation(img_code)
 
+    append_line(paths['imgs'], paths['img_pattern_short'] % img_id)
     append_line(paths['roots'], root_sym)
     append_line(paths['prefix'], prefix_code)
     append_line(paths['jsons'], str(img_code))
@@ -649,5 +706,7 @@ def render_to_file(filename, img_size, img_code):
 
 if __name__ == '__main__':
     # main()
+    # main_nn()
+    main_test_nn()
     # main_test()
-    main_process_results()
+    # main_process_results()
