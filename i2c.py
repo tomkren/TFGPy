@@ -6,29 +6,14 @@ from PIL import Image, ImageDraw, ImageMath, ImageStat  # Using https://pillow.r
 import imagehash  # Using https://pypi.python.org/pypi/ImageHash
 import numpy as np
 
+import matplotlib.pyplot as plt
+
+from shutil import copyfile
+import random
+
 from parsers import parse_typ, parse_ctx, fun_typ
 from generator import Generator
 from generator_static import ts
-
-# import tensorflow as tf
-
-# from keras.models import Sequential
-# from keras.layers import Dense, Activation
-
-
-# def main_nn():
-#
-#     model = Sequential([
-#         Dense(32, input_shape=(784,)),
-#         Activation('relu'),
-#         Dense(10),
-#         Activation('softmax'),
-#     ])
-#
-#     # For a multi-class classification problem
-#     model.compile(optimizer='rmsprop',
-#                   loss='categorical_crossentropy',
-#                   metrics=['accuracy'])
 
 
 def main():
@@ -113,6 +98,9 @@ def main_process_results():
     rows = []
     num_absolute_matches = 0
 
+    errs = []
+    num_mismatches = 0
+
     with open(inputs_path) as f_in:
         with open(outputs_path) as f_out:
 
@@ -127,7 +115,7 @@ def main_process_results():
                 if (not in_line) or (not out_line):
                     break
 
-                corrected_code = from_prefix_notation_family_1(out_line)
+                corrected_code, mismatch = from_prefix_notation_family_1(out_line)
 
                 in_img_path = in_imgs_path + in_line
                 out_img_path = out_imgs_path + in_line
@@ -141,6 +129,8 @@ def main_process_results():
 
                 err = imgs_err(input_im, output_im)
 
+                errs.append(err)
+
                 sum_err += err
                 if err == 0.0:
                     num_absolute_matches += 1
@@ -150,55 +140,145 @@ def main_process_results():
                 in_img_html = '<img src="imgs/%s">' % in_line
                 out_img_html = '<img src="imgs_out/%s">' % in_line
 
-                rows.append((in_img_html, out_img_html, err))
+                rows.append((in_img_html, out_img_html, out_line, err))
 
                 # report += '<tr><td>%s</td><td>%s</td><td><pre>%.10f</pre></td></tr>\n'%(in_img_html,out_img_html,err)
-                print("%s -> %s ... %.10f" % (in_line, out_line, err))
+                print("%s -> %s ... %.10f ... mismatch=%d" % (in_line, out_line, err, mismatch))
+                if mismatch != 0:
+                    num_mismatches += 1
+                    print('---> mismatch != 0')
                 i += 1
 
             # report += '</table>\n'
 
     stats = '\n'
-    stats += 'STATS:\n'
+    stats += 'STATS FOR TEST DATA:\n\n'
     stats += 'Number of test instances: %d\n' % i
     stats += 'Number of absolute matches: %d\n' % num_absolute_matches
     stats += 'Percent absolute matches: %f\n' % (100.0 * num_absolute_matches / i)
     stats += 'Average error: %.5f\n' % (sum_err / i)
     stats += 'Worst error: %.10f\n' % worst_err
+    stats += 'Number of output codes in incorrect format: %d\n' % num_mismatches
 
     print(stats)
     print('Generating report.html ...')
 
     table = '<table border="1">\n'
-    table += '<tr><th>in</th><th>out</th><th>error</th>\n'
-    for row in sorted(rows, key=lambda r: -r[2]):
-        table += '<tr><td>%s</td><td>%s</td><td><pre>%.10f</pre></td></tr>\n' % row
+    table += '<tr><th>in</th><th>out</th><th>raw output</th><th>error</th>\n'
+    for row in sorted(rows, key=lambda r: -r[3]):
+        table += '<tr><td>%s</td><td>%s</td><td><pre>%s</pre></td><td><pre>%.10f</pre></td></tr>\n' % row
     table += '</table>\n'
 
     report_stats = '<pre>%s</pre>' % stats
 
+    err_hist_filename = 'error_hist.png'
+    report_graphs = '<img src="%s">' % err_hist_filename
+
     with open(report_path, 'w') as f_report:
-        f_report.write(report_stats + '<br><br>\n' + table)
+        f_report.write(
+            '<h1>Results on test data</h1>' +
+            report_stats +
+            report_graphs +
+            '<br><br>\n' +
+            '<h2>Results on test data (sorted from worst to best error)</h2>' +
+            table
+        )
+
+    plt.title('Histogram of error on test data')
+    plt.xlabel('Error')
+    plt.ylabel('N')
+    plt.hist(errs, bins=23)
+    plt.savefig(results_dir_path + err_hist_filename)
+    # plt.show()
 
     print('Done.')
 
 
-def main_test_nn():
-    dataset_id = '003'
-    results_dir_path = 'imgs/results/results_' + dataset_id + '/'
+def test_histogram():
+    print('Testing histogram, bro.')
+    data = np.random.randn(1000)
+    plt.hist(data)
 
-    dataset_path = results_dir_path + 'dataset/'
-    imgs_path = dataset_path + 'imgs/'
-    img_filenames_path = dataset_path + 'imgs.txt'
-    correct_classes_path = dataset_path + 'roots.txt'
-
-    prepare_nn_dataset(imgs_path, img_filenames_path, correct_classes_path)
+    plt.show()
 
 
-def prepare_nn_dataset(imgs_path, img_filenames_path, correct_classes_path):
+def process_raw_dataset(data_path, classes_info, num_instances_per_class, train_validate_ratio):
+
+    ensure_dir(data_path)
+
+    num_train = int(round(num_instances_per_class * train_validate_ratio))
+
+    train_path = ensure_dir(data_path + 'train/')
+    valid_path = ensure_dir(data_path + 'validation/')
+
+    for info in classes_info:
+        name, num, class_path = info['name'], info['num'], info['path']
+        print("%s : %d" % (name, num))
+
+        filenames = os.listdir(class_path)
+
+        if len(filenames) != num:
+            raise RuntimeError('Wrong number of instances in '+class_path)
+
+        random.shuffle(filenames)
+
+        src_dst_pairs = [(f, f) for f in filenames]
+
+        if num < num_instances_per_class:
+            num_to_copy = num_instances_per_class - num
+            for i in range(num_to_copy):
+                src = filenames[i % num]
+                dst = 'c' + str(i+1) + '_' + src
+                src_dst_pairs.append((src, dst))
+
+        train_c_path = ensure_dir(train_path + name + '/')
+        valid_c_path = ensure_dir(valid_path + name + '/')
+
+        random.shuffle(src_dst_pairs)
+
+        for (src, dst) in src_dst_pairs[:num_train]:
+            src_path = class_path + src
+            dst_path = train_c_path + dst
+            copyfile(src_path, dst_path)
+
+        for (src, dst) in src_dst_pairs[num_train:num_instances_per_class]:
+            src_path = class_path + src
+            dst_path = valid_c_path + dst
+            copyfile(src_path, dst_path)
+
+
+def make_classes_info(classes_path, class_names_path, correct_classes_path):
+    class_names = {}
+    with open(correct_classes_path, 'r') as f:
+        while True:
+            name = f.readline().strip()
+            if not name:
+                break
+            if name in class_names:
+                class_names[name]['num'] += 1
+            else:
+                class_names[name] = {'name': name, 'num': 1, 'path': classes_path + name + '/'}
+
+    classes_info = sorted(class_names.values(), key=lambda o: -o['num'])
+    print(classes_info)
+    with open(class_names_path, 'w') as f:
+        f.write(json.dumps(classes_info, indent=2))
+
+
+def prepare_nn_dataset_raw(imgs_path, classes_path, img_filenames_path, correct_classes_path):
+
+    ensure_dir(classes_path)
 
     def step(img_filename, correct_class):
-        print("%s%s -> %s" % (imgs_path, img_filename, correct_class))
+        class_path = classes_path + correct_class + '/'
+        ensure_dir(class_path)
+
+        src_filename = imgs_path + img_filename
+        dst_filename = class_path + img_filename
+
+        copyfile(src_filename, dst_filename)
+
+        print("%s -> %s" % (src_filename, dst_filename))
 
     zip_files(img_filenames_path, correct_classes_path, step)
 
@@ -467,6 +547,15 @@ def ensure_dir(file_path):
     directory = os.path.dirname(file_path)
     if not os.path.exists(directory):
         os.makedirs(directory)
+    return file_path
+
+
+def does_dir_exist(file_path):
+    return os.path.exists(os.path.dirname(file_path))
+
+
+def does_file_exist(file_path):
+    return os.path.isfile(file_path)
 
 
 def root_symbol(code):
@@ -496,7 +585,7 @@ def from_prefix_notation(prefix_notation_str, arity_dict, default_sym):
     elif mismatch > 0:
         prefix_list += [default_sym] * mismatch  # To few symbols, we add default symbols.
 
-    return from_prefix_list(prefix_list, arity_dict)
+    return from_prefix_list(prefix_list, arity_dict), mismatch
 
 
 def from_prefix_list(prefix_list, arity_dict):
@@ -534,8 +623,8 @@ def from_prefix_notation_family_1(prefix_notation_str):
 
 def test_img_code(img_code):
     prefix_code = to_prefix_notation(img_code)
-    test_code = from_prefix_notation_family_1(prefix_code)
-    if str(test_code) == str(img_code):
+    test_code, mismatch = from_prefix_notation_family_1(prefix_code)
+    if str(test_code) == str(img_code) and mismatch == 0:
         print('OK: %s' % test_code)
     else:
         raise ValueError('TEST FAILED!')
@@ -584,7 +673,7 @@ def main_test():
 
 def robust_err(input_img_path, output_prefix_notation_str):
     im1 = Image.open(input_img_path)
-    corrected_code = from_prefix_notation_family_1(output_prefix_notation_str)
+    corrected_code, mismatch = from_prefix_notation_family_1(output_prefix_notation_str)
     im2 = render_to_img(im1.size, corrected_code)
     return imgs_err(im1, im2)
 
@@ -707,6 +796,7 @@ def render_to_file(filename, img_size, img_code):
 if __name__ == '__main__':
     # main()
     # main_nn()
-    main_test_nn()
+    # main_test_nn()
     # main_test()
-    # main_process_results()
+    main_process_results()
+    # test_histogram()
