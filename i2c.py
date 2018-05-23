@@ -77,17 +77,26 @@ def main_process_results():
 
     dataset_id = '003'
 
-    results_dir_path = 'imgs/results/results_' + dataset_id + '/'
+    results_root_dir_path = 'imgs/results/'
+    results_dir_path = results_root_dir_path + 'results_' + dataset_id + '/'
 
     inputs_path = results_dir_path + 'dev_imgs.txt'
     outputs_path = results_dir_path + 'prefixes_out.txt'
     report_path = results_dir_path + 'report.html'
+    report_template_path = results_root_dir_path + 'js/report.html'
+
+    report_js_path = results_dir_path + 'report-data.js'
+
+    dataset_path = results_dir_path + 'dataset/'
+    dataset_imgs_path = dataset_path + 'imgs.txt'
+    dataset_prefix_path = dataset_path + 'prefix.txt'
 
     in_imgs_path = results_dir_path + 'imgs/'
     out_imgs_path = results_dir_path + 'imgs_out/'
 
     ensure_dir(out_imgs_path)
-    open(report_path, 'w').close()
+    # open(report_path, 'w').close()
+    open(report_js_path, 'w').close()
 
     worst_err = 0.0
     sum_err = 0.0
@@ -100,6 +109,7 @@ def main_process_results():
 
     errs = []
     num_mismatches = 0
+    correct_codes = {}
 
     with open(inputs_path) as f_in:
         with open(outputs_path) as f_out:
@@ -116,6 +126,8 @@ def main_process_results():
                     break
 
                 corrected_code, mismatch = from_prefix_notation_family_1(out_line)
+
+                correct_codes[in_line] = ''
 
                 in_img_path = in_imgs_path + in_line
                 out_img_path = out_imgs_path + in_line
@@ -137,10 +149,7 @@ def main_process_results():
                 if err > worst_err:
                     worst_err = err
 
-                in_img_html = '<img src="imgs/%s">' % in_line
-                out_img_html = '<img src="imgs_out/%s">' % in_line
-
-                rows.append((in_img_html, out_img_html, out_line, err))
+                rows.append([in_line, out_line, err])
 
                 # report += '<tr><td>%s</td><td>%s</td><td><pre>%.10f</pre></td></tr>\n'%(in_img_html,out_img_html,err)
                 print("%s -> %s ... %.10f ... mismatch=%d" % (in_line, out_line, err, mismatch))
@@ -151,38 +160,68 @@ def main_process_results():
 
             # report += '</table>\n'
 
-    stats = '\n'
-    stats += 'STATS FOR TEST DATA:\n\n'
-    stats += 'Number of test instances: %d\n' % i
-    stats += 'Number of absolute matches: %d\n' % num_absolute_matches
-    stats += 'Percent absolute matches: %f\n' % (100.0 * num_absolute_matches / i)
-    stats += 'Average error: %.5f\n' % (sum_err / i)
-    stats += 'Worst error: %.10f\n' % worst_err
-    stats += 'Number of output codes in incorrect format: %d\n' % num_mismatches
+    def step(img_filename, correct_prefix):
+        if img_filename in correct_codes:
+            correct_codes[img_filename] = correct_prefix
 
-    print(stats)
+    zip_files(dataset_imgs_path, dataset_prefix_path, step)
+
+    stats = {
+        'num_test_instances': i,
+        'num_absolute_matches': num_absolute_matches,
+        'percent_absolute_matches': (100.0 * num_absolute_matches / i),
+        'mean_error': (sum_err / i),
+        'worst_error': worst_err,
+        'num_mismatches': num_mismatches
+    }
+
+    stats_str = '\n'
+    stats_str += 'Number of test instances: %d\n' % stats['num_test_instances']
+    stats_str += 'Number of absolute matches: %d\n' % stats['num_absolute_matches']
+    stats_str += 'Percent absolute matches: %f\n' % stats['percent_absolute_matches']
+    stats_str += 'Mean error: %.5f\n' % stats['mean_error']
+    stats_str += 'Worst error: %.10f\n' % stats['worst_error']
+    stats_str += 'Number of output codes in incorrect format: %d\n' % stats['num_mismatches']
+
+    print(stats_str)
     print('Generating report.html ...')
 
-    table = '<table border="1">\n'
-    table += '<tr><th>in</th><th>out</th><th>raw output</th><th>error</th>\n'
-    for row in sorted(rows, key=lambda r: -r[3]):
-        table += '<tr><td>%s</td><td>%s</td><td><pre>%s</pre></td><td><pre>%.10f</pre></td></tr>\n' % row
-    table += '</table>\n'
+    rows.sort(key=lambda r: -r[2])
 
-    report_stats = '<pre>%s</pre>' % stats
+    for row in rows:
+        row[1] = row[1], correct_codes[row[0]]
+
+    # table = '<table border="1">\n'
+    # table += '<tr><th>file</th><th>in</th><th>out</th><th>raw output / input prefix</th><th>error</th>\n'
+    # for img_src, (code_out, code_in), err in rows:
+    #     in_img_html = '<img src="imgs/%s">' % img_src
+    #     out_img_html = '<img src="imgs_out/%s">' % img_src
+    #     data = img_src, in_img_html, out_img_html, code_out + '\n' + code_in, err
+    #     table += '<tr><td>%s</td><td>%s</td><td>%s</td><td><pre>%s</pre></td><td><pre>%.10f</pre></td></tr>\n' % data
+    # table += '</table>\n'
 
     err_hist_filename = 'error_hist.png'
-    report_graphs = '<img src="%s">' % err_hist_filename
 
-    with open(report_path, 'w') as f_report:
-        f_report.write(
-            '<h1>Results on test data</h1>' +
-            report_stats +
-            report_graphs +
-            '<br><br>\n' +
-            '<h2>Results on test data (sorted from worst to best error)</h2>' +
-            table
-        )
+    # with open(report_path, 'w') as f_report:
+    #     f_report.write(
+    #         '<h1>Results on test data</h1>' +
+    #         '<h2>Stats for test data</h2>' +
+    #         '<pre>%s</pre>' % stats_str +
+    #         '<img src="%s">' % err_hist_filename +
+    #         '<br><br>\n' +
+    #         '<h2>Results on test data (sorted from worst to best error)</h2>' +
+    #         table
+    #     )
+
+    copyfile(report_template_path, report_path)
+
+    report_json = {
+        'stats': stats,
+        'table': rows
+    }
+
+    with open(report_js_path, 'w') as f_report_js:
+        f_report_js.write('report_data = %s;' % json.dumps(report_json, indent=0))
 
     plt.title('Histogram of error on test data')
     plt.xlabel('Error')
