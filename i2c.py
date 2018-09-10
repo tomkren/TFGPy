@@ -16,6 +16,113 @@ from generator import Generator
 from generator_static import ts
 
 
+def main_prepare_experiment():
+    prepare_experiment()
+
+
+def prepare_experiment():
+
+    # Parameters:
+
+    gen_opts_template_name = 'small'
+    path = 'imgs/gen'
+
+    domain_maker_name = 'family_1'
+    dim_size = 32
+    train_validate_ratio = 0.8
+    target_name = 'prefix'
+
+    hash_opts = {
+        'hash_size': 32,
+        'highfreq_factor': 4
+    }
+
+    # Derived parameters: Various gen_opts templates:
+
+    img_size = (dim_size, dim_size)
+
+    gen_opts_full = {
+        'max_tree_size': 51,
+        'exhaustive_generating_limit': 250000,
+        'sample_method': {'name': 'fixed_attempts', 'num_attempts': 20000},
+        'domain_maker': domain_maker_name,
+        'hash_opts': hash_opts,
+        'img_size': img_size,
+        'path': path
+    }
+
+    gen_opts_small = {
+        'max_tree_size': 17,
+        'exhaustive_generating_limit': 2500,
+        'sample_method': {'name': 'fixed_attempts', 'num_attempts': 100},
+        'domain_maker': domain_maker_name,
+        'hash_opts': hash_opts,
+        'img_size': img_size,
+        'path': path
+    }
+
+    gen_opts_lib = {
+        'full': gen_opts_full,
+        'small': gen_opts_small
+    }
+
+    # Run quick example generation, handy for visual check that imggenerator works properly.
+    save_hand_crafted_examples((512, 512))
+
+    # Generate dataset (not yet split into train and validate subsets)
+    gen_opts = gen_opts_lib[gen_opts_template_name]
+    generate_dataset(gen_opts)
+
+    # Split generated dataset to subsets (i.e. train, validate)
+    split_dataset(gen_opts, target_name, train_validate_ratio)
+
+
+def split_dataset(gen_opts, target_name, train_validate_ratio):
+
+    input_name = 'imgs'
+
+    path_experiment_dir = gen_opts['path']
+
+    if not path_experiment_dir.endswith('/'):
+        path_experiment_dir += '/'
+
+    path_imgs_txt = gen_opts['paths'][input_name]
+    path_targets_txt = gen_opts['paths'][target_name]
+
+    dataset = []
+    zip_files(path_imgs_txt, path_targets_txt, lambda img, code: dataset.append((img, code)))
+
+    num_all = len(dataset)
+    num_train = int(round(num_all * train_validate_ratio))
+    num_valid = num_all - num_train
+
+    random.shuffle(dataset)
+
+    train_dataset = dataset[:num_train]
+    valid_dataset = dataset[num_train:num_all]
+
+    if len(train_dataset) != num_train:
+        raise RuntimeError('Wrong number of train instances.')
+
+    if len(valid_dataset) != num_valid:
+        raise RuntimeError('Wrong number of validation instances.')
+
+    def generate_subset_files(prefix, sub_dataset):
+        prefix = path_experiment_dir + prefix
+
+        inputs_filename = prefix + '_' + input_name + '.txt'
+        targets_filename = prefix + '_' + target_name + '.txt'
+
+        with open(inputs_filename, 'w') as f_inputs:
+            with open(targets_filename, 'w') as f_targets:
+                for (img, code) in sub_dataset:
+                    f_inputs.write("%s\n" % img)
+                    f_targets.write("%s\n" % code)
+
+    generate_subset_files('train', train_dataset)
+    generate_subset_files('dev', valid_dataset)
+
+
 def main():
 
     save_hand_crafted_examples((512, 512))  # Run quick example generation ..
@@ -191,27 +298,7 @@ def main_process_results():
     for row in rows:
         row[1] = row[1], correct_codes[row[0]]
 
-    # table = '<table border="1">\n'
-    # table += '<tr><th>file</th><th>in</th><th>out</th><th>raw output / input prefix</th><th>error</th>\n'
-    # for img_src, (code_out, code_in), err in rows:
-    #     in_img_html = '<img src="imgs/%s">' % img_src
-    #     out_img_html = '<img src="imgs_out/%s">' % img_src
-    #     data = img_src, in_img_html, out_img_html, code_out + '\n' + code_in, err
-    #     table += '<tr><td>%s</td><td>%s</td><td>%s</td><td><pre>%s</pre></td><td><pre>%.10f</pre></td></tr>\n' % data
-    # table += '</table>\n'
-
     err_hist_filename = 'error_hist.png'
-
-    # with open(report_path, 'w') as f_report:
-    #     f_report.write(
-    #         '<h1>Results on test data</h1>' +
-    #         '<h2>Stats for test data</h2>' +
-    #         '<pre>%s</pre>' % stats_str +
-    #         '<img src="%s">' % err_hist_filename +
-    #         '<br><br>\n' +
-    #         '<h2>Results on test data (sorted from worst to best error)</h2>' +
-    #         table
-    #     )
 
     copyfile(report_template_path, report_path)
 
@@ -421,6 +508,8 @@ def init_files(path):
 
     if not path.endswith('/'):
         path += '/'
+
+    ensure_dir(path)
 
     imgs_path = path + 'imgs/'
     ensure_dir(imgs_path)
@@ -837,5 +926,6 @@ if __name__ == '__main__':
     # main_nn()
     # main_test_nn()
     # main_test()
-    main_process_results()
+    # =-> main_process_results()
     # test_histogram()
+    main_prepare_experiment()
