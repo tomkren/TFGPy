@@ -7,18 +7,19 @@ These images are intended for neural network experiments.
 
 ## experiment directory structure ##
 
-`/`                 ... "path"; the experiment root folder ... e.g. `imgs/gen/`
-`/imgs/`            ... All generated imgs will be here.
-`/imgs/%08d.png`    ... Single image filename pattern.
-`/imgs.txt`         ... Image filenames, one image per line.
-`/train_imgs.txt`   ... Training sub-dataset: Image filenames, one image per line.
-`/dev_imgs.txt`     ... Validation sub-dataset: Image filenames, one image per line.
-`/prefix.txt`       ... Target codes of images in prefix notation, one image per line.
-`/train_prefix.txt` ... Training sub-dataset: Target codes of images in prefix notation, one image per line.
-`/dev_prefix.txt`   ... Validation sub-dataset: Target codes of images in prefix notation, one image per line.
-`/jsons.txt`        ... Target codes of images in json notation, one image per line.
-`/stats.md`         ... Human readable stats in markdown, generated during the dataset generation process. 
-`/roots.txt`        ... (probably deprecated) Just the root symbol (first prefix) of the code, one image per line.
+`/`                       ... "path"; the experiment root folder ... e.g. `imgs/gen/`
+`/imgs/`                  ... All generated imgs will be here.
+`/imgs/%08d.png`          ... Single image filename pattern.
+`imgs/handmade_examples/` ... Hand made examples, handy for visual chech that generator is ok.
+`/imgs.txt`               ... Image filenames, one image per line.
+`/train_imgs.txt`         ... Training sub-dataset: Image filenames, one image per line.
+`/dev_imgs.txt`           ... Validation sub-dataset: Image filenames, one image per line.
+`/prefix.txt`             ... Target codes of images in prefix notation, one image per line.
+`/train_prefix.txt`       ... Training sub-dataset: Target codes of images in prefix notation, one image per line.
+`/dev_prefix.txt`         ... Validation sub-dataset: Target codes of images in prefix notation, one image per line.
+`/jsons.txt`              ... Target codes of images in json notation, one image per line.
+`/stats.md`               ... Human readable stats in markdown, generated during the dataset generation process. 
+`/roots.txt`              ... (probably deprecated) Just the root symbol (first prefix) of the code, one image per line.
 
 
 

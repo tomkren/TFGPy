@@ -24,13 +24,17 @@ def prepare_experiment():
 
     # Parameters:
 
+    # path = 'imgs/gen'
+    path = '../ubuntu-cabin/experiment/data'
+
+    dim_size = 32
     gen_opts_template_name = 'small'
-    path = 'imgs/gen'
 
     domain_maker_name = 'family_1'
-    dim_size = 32
     train_validate_ratio = 0.8
     target_name = 'prefix'
+
+    generate_handmade_examples = True
 
     hash_opts = {
         'hash_size': 32,
@@ -40,6 +44,9 @@ def prepare_experiment():
     # Derived parameters: Various gen_opts templates:
 
     img_size = (dim_size, dim_size)
+
+    if not path.endswith('/'):
+        path += '/'
 
     gen_opts_full = {
         'max_tree_size': 51,
@@ -67,7 +74,8 @@ def prepare_experiment():
     }
 
     # Run quick example generation, handy for visual check that imggenerator works properly.
-    save_hand_crafted_examples((512, 512))
+    if generate_handmade_examples:
+        save_hand_crafted_examples((512, 512), path+'imgs/handmade_examples/')
 
     # Generate dataset (not yet split into train and validate subsets)
     gen_opts = gen_opts_lib[gen_opts_template_name]
@@ -655,10 +663,9 @@ def make_hand_crafted_examples():
     return [code_001, code_002, elephant, simpler_elephant]
 
 
-def save_hand_crafted_examples(img_size):
+def save_hand_crafted_examples(img_size, dir_path='imgs/handmade/'):
     codes = make_hand_crafted_examples()
 
-    dir_path = 'imgs/handmade/'
     ensure_dir(dir_path)
     filename_pat = dir_path + '%03d.png'
 
