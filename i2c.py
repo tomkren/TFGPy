@@ -27,8 +27,7 @@ def prepare_experiment():
     # path = 'imgs/gen'
     path = '../ubuntu-cabin/experiment/data'
 
-    dim_size = 32
-    gen_opts_template_name = 'small'
+    gen_opts_template_name = '003similar'
 
     domain_maker_name = 'family_1'
     train_validate_ratio = 0.8
@@ -43,6 +42,7 @@ def prepare_experiment():
 
     # Derived parameters: Various gen_opts templates:
 
+    dim_size = 32
     img_size = (dim_size, dim_size)
 
     if not path.endswith('/'):
@@ -53,6 +53,26 @@ def prepare_experiment():
         'exhaustive_generating_limit': 250000,
         'sample_method': {'name': 'fixed_attempts', 'num_attempts': 20000},
         'domain_maker': domain_maker_name,
+        'hash_opts': hash_opts,
+        'img_size': img_size,
+        'path': path
+    }
+
+    gen_opts_requested = {
+        'max_tree_size': 13,
+        'exhaustive_generating_limit': 250000,
+        'sample_method': {'name': 'fixed_attempts', 'num_attempts': 100000},
+        'domain_maker': 'family_1',
+        'hash_opts': hash_opts,
+        'img_size': (128, 128),
+        'path': path
+    }
+
+    gen_opts_003similar = {
+        'max_tree_size': 13,
+        'exhaustive_generating_limit': 250000,
+        'sample_method': {'name': 'fixed_attempts', 'num_attempts': 100000},
+        'domain_maker': 'family_1',
         'hash_opts': hash_opts,
         'img_size': img_size,
         'path': path
@@ -70,6 +90,8 @@ def prepare_experiment():
 
     gen_opts_lib = {
         'full': gen_opts_full,
+        'requested_128': gen_opts_requested,
+        '003similar': gen_opts_003similar,
         'small': gen_opts_small
     }
 
