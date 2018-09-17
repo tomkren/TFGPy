@@ -21,7 +21,7 @@ def main_prepare_experiment():
 
 
 def i2c_gen(gen_opts):
-    print('main_i2c_gen', gen_opts)
+    print('i2c_gen(', gen_opts, ')')
 
 
 def prepare_experiment():

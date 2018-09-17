@@ -19,6 +19,19 @@ python3 -V
 echo Creating venv for neural monkey ...
 python3 -m venv nm
 
+echo Switch to the newly created nm venv ...
+source nm/bin/activate
+
+echo TODO: make TFGPy requrements.txt and add the following packages to it!
+echo Install Pillow, ImageHash and matplotlib: python packages used in TFGPy in i2c ...
+pip install Pillow
+pip install ImageHash
+pip install matplotlib
+
+echo Omg, for making matplotlib work it was also needed to install python3-tk on my win ubuntu.. 
+sudo apt-get install python3-tk 
+
+
 echo Clone neural monkey repo ...
 git clone https://github.com/ufal/neuralmonkey
 
