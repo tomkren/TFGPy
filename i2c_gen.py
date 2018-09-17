@@ -11,7 +11,7 @@ GO_ALL = [GO_small, GO_full, GO_requested_128, GO_003similar]
 
 def parse_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--domain', type=str, choices=GO_ALL, default=GO_small)
+    parser.add_argument('--gen_opts', type=str, choices=GO_ALL, default=GO_small)
     return parser.parse_args()
 
 
