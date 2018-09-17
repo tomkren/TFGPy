@@ -6,9 +6,10 @@ import argparse
 GO_small = 'small'
 GO_full = 'full'
 GO_requested_128 = 'requested_128'
+GO_requested_64 = 'requested_64'
 GO_003similar = '003similar'
 
-GO_ALL = [GO_small, GO_full, GO_requested_128, GO_003similar]
+GO_ALL = [GO_small, GO_full, GO_requested_128, GO_requested_64, GO_003similar]
 
 
 def parse_args():

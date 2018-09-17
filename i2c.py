@@ -61,13 +61,23 @@ def prepare_experiment(gen_opts_template_name='small', path='../ubuntu-cabin/exp
         'path': path
     }
 
-    gen_opts_requested = {
+    gen_opts_requested_128 = {
         'max_tree_size': 13,
         'exhaustive_generating_limit': 250000,
         'sample_method': {'name': 'fixed_attempts', 'num_attempts': 100000},
         'domain_maker': 'family_1',
         'hash_opts': hash_opts,
         'img_size': (128, 128),
+        'path': path
+    }
+
+    gen_opts_requested_64 = {
+        'max_tree_size': 13,
+        'exhaustive_generating_limit': 250000,
+        'sample_method': {'name': 'fixed_attempts', 'num_attempts': 100000},
+        'domain_maker': 'family_1',
+        'hash_opts': hash_opts,
+        'img_size': (64, 64),
         'path': path
     }
 
@@ -93,7 +103,8 @@ def prepare_experiment(gen_opts_template_name='small', path='../ubuntu-cabin/exp
 
     gen_opts_lib = {
         'full': gen_opts_full,
-        'requested_128': gen_opts_requested,
+        'requested_128': gen_opts_requested_128,
+        'requested_64': gen_opts_requested_64,
         '003similar': gen_opts_003similar,
         'small': gen_opts_small
     }
