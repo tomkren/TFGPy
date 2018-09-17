@@ -21,17 +21,16 @@ def main_prepare_experiment():
 
 
 def i2c_gen(args):
-    print('i2c_gen(', args.gen_opts, args.gen_dir, ')')
+    print('i2c_gen(', args.gen_opts, ',', args.gen_dir, ')')
+    prepare_experiment(args.gen_opts, args.gen_dir)
 
 
 def prepare_experiment(gen_opts_template_name='small', path='../ubuntu-cabin/experiment/data'):
 
     # Parameters:
 
-    # path = 'imgs/gen'
-    # path = '../ubuntu-cabin/experiment/data'
-
-    # gen_opts_template_name = '003similar'
+    # path ... 'imgs/gen'  '../ubuntu-cabin/experiment/data'
+    # gen_opts_template_name ... '003similar'
 
     domain_maker_name = 'family_1'
     train_validate_ratio = 0.8
