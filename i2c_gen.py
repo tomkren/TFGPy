@@ -1,4 +1,5 @@
-#!/usr/bin/env pypy3
+#!/usr/bin/env python3
+
 import argparse
 
 GO_small = 'small'
