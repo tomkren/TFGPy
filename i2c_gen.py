@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+import i2c
 import argparse
 
 GO_small = 'small'
@@ -19,6 +20,7 @@ def parse_args():
 def main():
     args = parse_args()
     print(args)
+    i2c.i2c_gen(args.gen_opts)
 
 
 if __name__ == "__main__":
