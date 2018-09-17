@@ -50,6 +50,17 @@ pip install --upgrade -r requirements.txt
 echo Back to the home dir ...
 cd ..
 
+echo Generate i2c dataset with the default arguments, which should be a small test dataset to experiment/data dir ...
+# shold be same as: ./TFGPy/i2c_gen.py --gen_opts=small --gen_dir=experiment/data
+./TFGPy/i2c_gen.py
 
+echo TODO: do the experiment.ini creation in the i2c_gen call!
+echo TODO: needed to change the prefix var in experiment.ini for the path to the experiment dir
+echo Create experiment.ini ...
+cp TFGPy/imgs/nm/experiment.ini experiment/experiment.ini
 
+# Change to  ~/experiment
+cd experiment/
 
+echo Starting The Experiment ...
+../neuralmonkey/bin/neuralmonkey-train experiment.ini
