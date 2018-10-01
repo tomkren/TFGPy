@@ -24,8 +24,8 @@ function MkRowsLoader($table_container, rows) {
         load_rows(0, num_show);
         setInterval(function() {
             if (isScrolledIntoView($('#table-tail')[0])) {
-                console.log('loading more...');
                 num_skip += num_show;
+                console.log('loading more... load_rows('+num_skip+', '+num_show+')');
                 load_rows(num_skip, num_show);
             }
         }, interval);
@@ -43,17 +43,18 @@ function MkRowsLoader($table_container, rows) {
 
         $table = $('<table>').html(
                 $('<tr>').append([
+                    $('<th>').text(''),
                     $('<th>').text('file'),
                     $('<th>').text('in'),
                     $('<th>').text('out'),
-                    $('<th>').text('raw output / input prefix'),
+                    $('<th>').text('raw output / original input'),
                     $('<th>').text('error')
         ]));
 
         $table_container.html($table);
     }
 
-    function add_row(row) {
+    function add_row(i, row) {
 
         var img_src = row[0];
         var codes = row[1];
@@ -61,10 +62,11 @@ function MkRowsLoader($table_container, rows) {
 
 
         var $tr = $('<tr>').append([
+            $('<td>').addClass('txt-cell').text(i),
             $('<td>').addClass('txt-cell').text(img_src),
             $('<td>').html($('<img>').attr({src: 'imgs/' + img_src})),
             $('<td>').html($('<img>').attr({src: 'imgs_out/' + img_src})),
-            $('<td>').addClass('txt-cell').html(codes[0] + '<br>' + codes[1]),
+            $('<td>').addClass('txt-cell').html('output &nbsp; : ' + codes[0] + '<br>' + 'original : ' +codes[1]),
             $('<td>').addClass('txt-cell').text(err)
         ]);
 
@@ -72,9 +74,11 @@ function MkRowsLoader($table_container, rows) {
     }
 
     function load_rows(num_skip, num_show) {
-        var rows_to_show = _.take(_.take(rows, num_skip + num_show), num_show);
+        var rows_to_show = _.drop(_.take(rows, num_skip + num_show), num_skip);
+        var i = num_skip+1;
         _.each(rows_to_show, function (row) {
-            add_row(row);
+            add_row(i, row);
+            i++;
         });
     }
 

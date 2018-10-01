@@ -5,7 +5,7 @@ Currently, the script generating them is the `draw.py` script.
 These images are intended for neural network experiments.
 
 
-## experiment directory structure ##
+## Experiment directory structure ##
 
 `/`                       ... "path"; the experiment root folder ... e.g. `imgs/gen/`
 `/imgs/`                  ... All generated imgs will be here.
@@ -20,6 +20,44 @@ These images are intended for neural network experiments.
 `/jsons.txt`              ... Target codes of images in json notation, one image per line.
 `/stats.md`               ... Human readable stats in markdown, generated during the dataset generation process. 
 `/roots.txt`              ... (probably deprecated) Just the root symbol (first prefix) of the code, one image per line.
+
+
+
+
+
+## Supposed Results directory ##
+
+How now `main_process_results` function assumes the structure of the results dir:
+
+`results_XYZ/`                      ... `results_dir_path`: the result dir `TFGPy/imgs/results/results_003/`
+
+Needs to be on place:
+
+`results_XYZ/dev_imgs.txt`          ... `inputs_path`: cesta k souboru s jménama input obrázků
+`results_XYZ/prefixes_out.txt`      ... `outputs_path`: cesta k souboru kde jsou spočítaný výstupy sítí který chceme ohodnotit
+`results_XYZ/dataset/`              ... `dataset_path`: 
+`results_XYZ/dataset/imgs.txt`      ... `dataset_imgs_path`:
+`results_XYZ/dataset/prefix.txt`    ... `dataset_prefix_path`:
+`results_XYZ/imgs/`                 ... `in_imgs_path`:
+`results_XYZ/imgs/%08d.png`         ... Single image filename pattern.
+
+`js/report.html`                    ... `report_template_path` odkud se ten templejt kopčí
+`js/`                               ... sem to pak referuje, takže by to mělo bejt vygenerovaný aby to relativně čaplo
+
+Will be generated:
+
+`results_XYZ/imgs_out/`             ... `out_imgs_path`:
+`results_XYZ/report-data.js`        ... `report_js_path`: sem se nageneruje json na kterej je ten repoert.html pak jakoby "prohlížeč"
+`results_XYZ/report.html`           ... `report_path`: cesta kam bude zkopčenej home readable report.html
+
+Renames when creating from experiment dir to be ok with this convention:
+
+data/dev_imgs.txt     -->  dev_imgs.txt
+out/model_outputs.txt -->  prefixes_out.txt
+data/imgs.txt         -->  dataset/imgs.txt
+data/prefix.txt       -->  dataset/prefix.txt
+
+
 
 
 

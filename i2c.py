@@ -226,7 +226,7 @@ def main():
 
 def main_process_results():
 
-    dataset_id = '003'
+    dataset_id = 'haf_64'  # '003'
 
     results_root_dir_path = 'imgs/results/'
     results_dir_path = results_root_dir_path + 'results_' + dataset_id + '/'
@@ -969,6 +969,6 @@ if __name__ == '__main__':
     # main_nn()
     # main_test_nn()
     # main_test()
-    # =-> main_process_results()
+    main_process_results()
     # test_histogram()
-    main_prepare_experiment()
+    # =-> main_prepare_experiment()
