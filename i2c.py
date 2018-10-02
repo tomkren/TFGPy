@@ -54,7 +54,7 @@ def run_model(experiment_path, img_paths):
 
     print(cmd_str)
 
-    # os.system(cmd_str)
+    os.system(cmd_str)
 
     # TODO  continue here !!! !!! !!! !!! !!! !!! !!! !!! !!! !!! !!! !!! !!! !!! !!! !!! !!!
 
