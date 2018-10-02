@@ -55,14 +55,28 @@ def run_model(experiment_path, img_paths):
     with open(input_file_path, 'w') as f_input_imgs:
         for img_path in img_paths:
             f_input_imgs.write("%s\n" % img_path)
-            print('-> %s' % img_path)
+            print('input_img -> %s' % img_path)
 
     cmd_str = 'python '+nm_run_path+' '+data_experiment_ini+' '+data_ini
     print(cmd_str)
 
     os.system(cmd_str)
 
-    # TODO : parse output file and return it as a list of strings or codes
+    output_file_path = experiment_path + 'out/model_outputs_generated.txt'
+
+    codes = []
+
+    with open(output_file_path, 'r') as f_output_codes:
+        while True:
+            code_str = f_output_codes.readline().strip()
+            if code_str:
+                print('output_code -> %s' % code_str)
+                codes.append(code_str)
+            else:
+                break
+
+    print('codes:', codes)
+    return codes
 
 
 def prepare_experiment(gen_opts_template_name='small', path='../ubuntu-cabin/experiment/data'):
