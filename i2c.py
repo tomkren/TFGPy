@@ -50,13 +50,19 @@ def run_model(experiment_path, img_paths):
     data_experiment_ini = experiment_path + 'data_experiment.ini'
     data_ini = experiment_path + 'data_generated.ini'
 
-    cmd_str = 'python '+nm_run_path+' '+data_experiment_ini+' '+data_ini
+    input_file_path = experiment_path + 'data/run_imgs_generated.txt'
 
+    with open(input_file_path, 'w') as f_input_imgs:
+        for img_path in img_paths:
+            f_input_imgs.write("%s\n" % img_path)
+            print('-> %s' % img_path)
+
+    cmd_str = 'python '+nm_run_path+' '+data_experiment_ini+' '+data_ini
     print(cmd_str)
 
     os.system(cmd_str)
 
-    # TODO  continue here !!! !!! !!! !!! !!! !!! !!! !!! !!! !!! !!! !!! !!! !!! !!! !!! !!!
+    # TODO : parse output file and return it as a list of strings or codes
 
 
 def prepare_experiment(gen_opts_template_name='small', path='../ubuntu-cabin/experiment/data'):
