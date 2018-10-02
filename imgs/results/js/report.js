@@ -16,7 +16,7 @@ function MkRowsLoader($table_container, rows) {
 
     var num_skip = 0;
     var num_show = 200;
-    var interval = 200;
+    var interval = 200; // time
     var $table;
 
     function init() {

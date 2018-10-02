@@ -16,13 +16,47 @@ from generator import Generator
 from generator_static import ts
 
 
+def i2c_gen(args):
+    print('i2c_gen(', args.gen_opts, ',', args.gen_dir, ')')
+    prepare_experiment(args.gen_opts, args.gen_dir)
+
+
+def i2c_run(args):
+    print('i2c_run(', args.experiment_path, ',', args.img_paths, ')')
+    run_model(args.experiment_path, args.img_paths)
+
+
 def main_prepare_experiment():
     prepare_experiment()
 
 
-def i2c_gen(args):
-    print('i2c_gen(', args.gen_opts, ',', args.gen_dir, ')')
-    prepare_experiment(args.gen_opts, args.gen_dir)
+def run_model(experiment_path, img_paths):
+
+    if isinstance(img_paths, str):
+        img_paths = [img_paths]
+
+    print('TODO: Run model from experiment dir', experiment_path, 'on images', img_paths)
+
+    nm_path = '../neuralmonkey'
+
+    if not nm_path.endswith('/'):
+        nm_path += '/'
+
+    if not experiment_path.endswith('/'):
+        experiment_path += '/'
+
+    nm_run_path = nm_path + 'bin/neuralmonkey-run'
+
+    data_experiment_ini = experiment_path + 'data_experiment.ini'
+    data_ini = experiment_path + 'data.ini'
+
+    cmd_str = 'python '+nm_run_path+' '+data_experiment_ini+' '+data_ini
+
+    print(cmd_str)
+
+    # os.system(cmd_str)
+
+    # TODO  continue here !!! !!! !!! !!! !!! !!! !!! !!! !!! !!! !!! !!! !!! !!! !!! !!! !!!
 
 
 def prepare_experiment(gen_opts_template_name='small', path='../ubuntu-cabin/experiment/data'):
