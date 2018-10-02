@@ -73,6 +73,7 @@ def run_model(experiment_path, img_paths):
                 print('output_code -> %s' % code_str)
                 codes.append(code_str)
             else:
+                print('')
                 break
 
     print('codes:', codes)
