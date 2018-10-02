@@ -48,7 +48,7 @@ def run_model(experiment_path, img_paths):
     nm_run_path = nm_path + 'bin/neuralmonkey-run'
 
     data_experiment_ini = experiment_path + 'data_experiment.ini'
-    data_ini = experiment_path + 'data_one.ini'
+    data_ini = experiment_path + 'data_generated.ini'
 
     cmd_str = 'python '+nm_run_path+' '+data_experiment_ini+' '+data_ini
 
