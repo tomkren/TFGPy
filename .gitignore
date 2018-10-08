@@ -8,6 +8,7 @@ logs/
 !/imgs/results/js/report.html
 !/imgs/results/js/report.js
 
+
 # sample scripts to ignore:
 mnist_mlp.py
 

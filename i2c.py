@@ -27,7 +27,7 @@ def i2c_run(args):
 
 
 def main_prepare_experiment():
-    prepare_experiment()
+    prepare_experiment('few_big', 'imgs/gen')
 
 
 def run_model(experiment_path, img_paths):
@@ -80,7 +80,35 @@ def run_model(experiment_path, img_paths):
     return codes
 
 
-def prepare_experiment(gen_opts_template_name='small', path='../ubuntu-cabin/experiment/data'):
+def test_big_image():
+
+    experiment_path = 'imgs/results/results_haf_64/'  # '../experiments/haf_64/'
+
+    # params
+
+    big_img_path = experiment_path + 'imgs_big/floral.png'
+    small_img_size = 64, 64
+
+    print('Test big image...')
+
+    def save_thumbnail(small_img_path, thumbnail_method):
+        try:
+            im = Image.open(big_img_path)
+            im.thumbnail(small_img_size, thumbnail_method)
+            im.save(small_img_path, "png")
+            print('Thumbnail for "%s" created: "%s"' % (big_img_path, small_img_path))
+        except IOError:
+            print('Cannot create thumbnail for "%s"' % big_img_path)
+
+    save_thumbnail(experiment_path + 'imgs_big/floral.small_0.png', Image.NEAREST)
+    save_thumbnail(experiment_path + 'imgs_big/floral.small_1.png', Image.ANTIALIAS)
+    save_thumbnail(experiment_path + 'imgs_big/floral.small_2.png', Image.LINEAR)
+    save_thumbnail(experiment_path + 'imgs_big/floral.small_3.png', Image.CUBIC)
+    save_thumbnail(experiment_path + 'imgs_big/floral.small_4.png', Image.BOX)
+    save_thumbnail(experiment_path + 'imgs_big/floral.small_5.png', Image.HAMMING)
+
+
+def prepare_experiment(gen_opts_template_name='small', path='imgs/gen'):
 
     # Parameters:
 
@@ -156,12 +184,24 @@ def prepare_experiment(gen_opts_template_name='small', path='../ubuntu-cabin/exp
         'path': path
     }
 
+    gen_opts_few_big = {
+        'min_tree_size': 17,
+        'max_tree_size': 17,
+        'exhaustive_generating_limit': 2500,
+        'sample_method': {'name': 'fixed_attempts', 'num_attempts': 100},
+        'domain_maker': domain_maker_name,
+        'hash_opts': hash_opts,
+        'img_size': img_size,
+        'path': path
+    }
+
     gen_opts_lib = {
         'full': gen_opts_full,
         'requested_128': gen_opts_requested_128,
         'requested_64': gen_opts_requested_64,
         '003similar': gen_opts_003similar,
-        'small': gen_opts_small
+        'small': gen_opts_small,
+        'few_big': gen_opts_few_big
     }
 
     # Run quick example generation, handy for visual check that imggenerator works properly.
@@ -533,12 +573,14 @@ def generate_dataset(gen_opts):
     next_img_id = 1
     attempt = 0
 
+    min_tree_size = gen_opts.get('min_tree_size', 1)
     max_tree_size = gen_opts['max_tree_size']
+
     exhaustive_generating_limit = gen_opts['exhaustive_generating_limit']
     sample_method = gen_opts['sample_method']
     sample_method_name = sample_method['name']
 
-    for tree_size in range(1, max_tree_size + 1):
+    for tree_size in range(min_tree_size, max_tree_size + 1):
         one_size_start_time = time()
 
         num_trees = gen.get_num(tree_size, goal)
@@ -1024,6 +1066,7 @@ if __name__ == '__main__':
     # main_nn()
     # main_test_nn()
     # main_test()
-    main_process_results()
+    # =-> main_process_results()
     # test_histogram()
-    # =-> main_prepare_experiment()
+    main_prepare_experiment()
+    # test_big_image()
