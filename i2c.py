@@ -185,13 +185,13 @@ def prepare_experiment(gen_opts_template_name='small', path='imgs/gen'):
     }
 
     gen_opts_few_big = {
-        'min_tree_size': 17,
-        'max_tree_size': 17,
+        'min_tree_size': 63,
+        'max_tree_size': 63,
         'exhaustive_generating_limit': 2500,
         'sample_method': {'name': 'fixed_attempts', 'num_attempts': 100},
         'domain_maker': domain_maker_name,
         'hash_opts': hash_opts,
-        'img_size': img_size,
+        'img_size': (512,512),
         'path': path
     }
 
