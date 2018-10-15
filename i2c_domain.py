@@ -1,5 +1,7 @@
+import sys
 from collections import OrderedDict
 
+from generator import Generator
 from parsers import parse_typ, fun_typ, parse_ctx
 
 
@@ -61,3 +63,18 @@ def make_hand_crafted_examples():
     simpler_elephant = q(G, q(W, W, G, W), q(W, G, q(G, G, G, W), q(G, G, W, G)), q(q(q(W, q(W, W, G, q(G, W, q(q(W, W, W, G), G, W, W), W)), W, G), G, W, W), W, q(W, W, W, W), W))
 
     return [code_001, code_002, elephant, simpler_elephant]
+
+
+if __name__ == "__main__":
+    goal, gamma = make_family_1()
+
+    gen = Generator(gamma)
+    for tree_size in [3, 5]:
+        num_trees = gen.get_num(tree_size, goal)
+        print('tree_size =', tree_size, "-> num_trees =", num_trees)
+
+        if num_trees:
+            # generate a few random trees
+            for i_sample in range(5):
+                tree = gen.gen_one(tree_size, goal)
+                print(tree_size, tree)

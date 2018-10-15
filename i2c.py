@@ -1,7 +1,6 @@
 import json
 import os
 import random
-import sys
 from shutil import copyfile
 from time import time
 
@@ -551,29 +550,6 @@ def zip_files(path1, path2, f):
                 f(line1, line2)
 
 
-
-def log(*args, **kwargs):
-    #print(args, kwargs)
-    print(args, kwargs, file=sys.stderr)
-
-
-def gen(goal, gamma, min_tree_size, max_tree_size, exhaustive_generating_limit, trees_per_size):
-    gen = Generator(gamma)
-    for tree_size in range(min_tree_size, max_tree_size + 1):
-        num_trees = gen.get_num(tree_size, goal)
-        log('tree_size =', tree_size, "-> num_trees =", num_trees)
-
-        if num_trees > 0:
-            if num_trees < exhaustive_generating_limit:
-                for i, tree_data in enumerate(ts(gamma, tree_size, goal, 0)):
-                    yield i, tree_data.tree
-
-            else:
-                for i_sample in range(trees_per_size):
-                    tree = gen.gen_one(tree_size, goal)
-                    yield tree
-
-
 def generate_dataset(gen_opts):
     start_time = time()
 
@@ -717,7 +693,7 @@ def save_stats_header(gen_opts):
     row = 'Tree size', 'Num of all trees', 'Generating method', 'Attempts', 'New trees', 'New/Attempts %', 'Time'
     stats += '| %-9s | %-40s | %-17s | %-10s | %-10s | %-14s | %-14s |\n' % row
     stats += '| %s | %s | %s | %s | %s | %s | %s |\n' % (
-    '-' * 9, '-' * 40, '-' * 17, '-' * 10, '-' * 10, '-' * 14, '-' * 14)
+        '-' * 9, '-' * 40, '-' * 17, '-' * 10, '-' * 10, '-' * 14, '-' * 14)
     gen_opts['stats'] = ''
     append_stats(gen_opts, stats)
 
