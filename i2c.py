@@ -1,19 +1,19 @@
-from collections import OrderedDict
-from time import time
-import os
 import json
-from PIL import Image, ImageDraw, ImageMath, ImageStat  # Using https://pillow.readthedocs.io
-import imagehash  # Using https://pypi.python.org/pypi/ImageHash
-import numpy as np
+import os
+import random
+import sys
+from shutil import copyfile
+from time import time
 
 import matplotlib.pyplot as plt
+import numpy as np
+from PIL import Image, ImageMath  # Using https://pillow.readthedocs.io
 
-from shutil import copyfile
-import random
-
-from parsers import parse_typ, parse_ctx, fun_typ
+import i2c_domain
 from generator import Generator
 from generator_static import ts
+from i2c_domain import make_hand_crafted_examples
+from i2c_render import render_to_file, render_to_img, render_to_img_with_phash
 
 
 def i2c_gen(args):
@@ -31,7 +31,6 @@ def main_prepare_experiment():
 
 
 def run_model(experiment_path, img_paths):
-
     if isinstance(img_paths, str):
         img_paths = [img_paths]
 
@@ -57,7 +56,7 @@ def run_model(experiment_path, img_paths):
             f_input_imgs.write("%s\n" % img_path)
             print('input_img -> %s' % img_path)
 
-    cmd_str = 'python '+nm_run_path+' '+data_experiment_ini+' '+data_ini
+    cmd_str = 'python ' + nm_run_path + ' ' + data_experiment_ini + ' ' + data_ini
     print(cmd_str)
 
     os.system(cmd_str)
@@ -81,7 +80,6 @@ def run_model(experiment_path, img_paths):
 
 
 def test_big_image():
-
     experiment_path = 'imgs/results/results_haf_64/'  # '../experiments/haf_64/'
 
     # params
@@ -109,7 +107,6 @@ def test_big_image():
 
 
 def prepare_experiment(gen_opts_template_name='small', path='imgs/gen'):
-
     # Parameters:
 
     # path ... 'imgs/gen'  '../ubuntu-cabin/experiment/data'
@@ -191,7 +188,7 @@ def prepare_experiment(gen_opts_template_name='small', path='imgs/gen'):
         'sample_method': {'name': 'fixed_attempts', 'num_attempts': 100},
         'domain_maker': domain_maker_name,
         'hash_opts': hash_opts,
-        'img_size': (512,512),
+        'img_size': (512, 512),
         'path': path
     }
 
@@ -206,7 +203,7 @@ def prepare_experiment(gen_opts_template_name='small', path='imgs/gen'):
 
     # Run quick example generation, handy for visual check that imggenerator works properly.
     if generate_handmade_examples:
-        save_hand_crafted_examples((512, 512), path+'imgs/handmade_examples/')
+        save_hand_crafted_examples((512, 512), path + 'imgs/handmade_examples/')
 
     # Generate dataset (not yet split into train and validate subsets)
     gen_opts = gen_opts_lib[gen_opts_template_name]
@@ -217,7 +214,6 @@ def prepare_experiment(gen_opts_template_name='small', path='imgs/gen'):
 
 
 def split_dataset(gen_opts, target_name, train_validate_ratio):
-
     input_name = 'imgs'
 
     path_experiment_dir = gen_opts['path']
@@ -263,7 +259,6 @@ def split_dataset(gen_opts, target_name, train_validate_ratio):
 
 
 def main():
-
     save_hand_crafted_examples((512, 512))  # Run quick example generation ..
 
     path = 'imgs/gen'
@@ -320,7 +315,6 @@ def main():
 
 
 def main_process_results():
-
     dataset_id = 'haf_64'  # '003'
 
     results_root_dir_path = 'imgs/results/'
@@ -468,7 +462,6 @@ def test_histogram():
 
 
 def process_raw_dataset(data_path, classes_info, num_instances_per_class, train_validate_ratio):
-
     ensure_dir(data_path)
 
     num_train = int(round(num_instances_per_class * train_validate_ratio))
@@ -483,7 +476,7 @@ def process_raw_dataset(data_path, classes_info, num_instances_per_class, train_
         filenames = os.listdir(class_path)
 
         if len(filenames) != num:
-            raise RuntimeError('Wrong number of instances in '+class_path)
+            raise RuntimeError('Wrong number of instances in ' + class_path)
 
         random.shuffle(filenames)
 
@@ -493,7 +486,7 @@ def process_raw_dataset(data_path, classes_info, num_instances_per_class, train_
             num_to_copy = num_instances_per_class - num
             for i in range(num_to_copy):
                 src = filenames[i % num]
-                dst = 'c' + str(i+1) + '_' + src
+                dst = 'c' + str(i + 1) + '_' + src
                 src_dst_pairs.append((src, dst))
 
         train_c_path = ensure_dir(train_path + name + '/')
@@ -531,7 +524,6 @@ def make_classes_info(classes_path, class_names_path, correct_classes_path):
 
 
 def prepare_nn_dataset_raw(imgs_path, classes_path, img_filenames_path, correct_classes_path):
-
     ensure_dir(classes_path)
 
     def step(img_filename, correct_class):
@@ -559,13 +551,36 @@ def zip_files(path1, path2, f):
                 f(line1, line2)
 
 
+
+def log(*args, **kwargs):
+    #print(args, kwargs)
+    print(args, kwargs, file=sys.stderr)
+
+
+def gen(goal, gamma, min_tree_size, max_tree_size, exhaustive_generating_limit, trees_per_size):
+    gen = Generator(gamma)
+    for tree_size in range(min_tree_size, max_tree_size + 1):
+        num_trees = gen.get_num(tree_size, goal)
+        log('tree_size =', tree_size, "-> num_trees =", num_trees)
+
+        if num_trees > 0:
+            if num_trees < exhaustive_generating_limit:
+                for i, tree_data in enumerate(ts(gamma, tree_size, goal, 0)):
+                    yield i, tree_data.tree
+
+            else:
+                for i_sample in range(trees_per_size):
+                    tree = gen.gen_one(tree_size, goal)
+                    yield tree
+
+
 def generate_dataset(gen_opts):
     start_time = time()
 
     gen_opts['paths'] = init_files(gen_opts['path'])
     save_stats_header(gen_opts)
 
-    domain_maker = family_lib[gen_opts['domain_maker']]
+    domain_maker = i2c_domain.family_lib[gen_opts['domain_maker']]
     goal, gamma = domain_maker()
     gen = Generator(gamma)
 
@@ -597,7 +612,6 @@ def generate_dataset(gen_opts):
                 num_attempts = num_trees
 
                 for tree_data in ts(gamma, tree_size, goal, 0):
-
                     tree = tree_data.tree
                     attempt += 1
 
@@ -612,7 +626,6 @@ def generate_dataset(gen_opts):
                     num_attempts = sample_method['num_attempts']
 
                     for i_sample in range(num_attempts):
-
                         tree = gen.gen_one(tree_size, goal)
                         attempt += 1
 
@@ -625,7 +638,8 @@ def generate_dataset(gen_opts):
             new_for_this_size = next_img_id - next_img_id_start
             one_size_delta_time = time() - one_size_start_time
 
-            save_stats_size_info(gen_opts, tree_size, num_trees, gen_method_name, num_attempts, new_for_this_size, one_size_delta_time)
+            save_stats_size_info(gen_opts, tree_size, num_trees, gen_method_name, num_attempts, new_for_this_size,
+                                 one_size_delta_time)
 
     # save stats and we are done ..
     num_generated_trees = next_img_id - 1
@@ -646,7 +660,6 @@ def generate_step(gen_opts, tree, img_hashes, tree_size, next_img_id, attempt):
 
 
 def init_files(path):
-
     if not path.endswith('/'):
         path += '/'
 
@@ -703,7 +716,8 @@ def save_stats_header(gen_opts):
     stats += '## Stats for tree sizes ##\n\n'
     row = 'Tree size', 'Num of all trees', 'Generating method', 'Attempts', 'New trees', 'New/Attempts %', 'Time'
     stats += '| %-9s | %-40s | %-17s | %-10s | %-10s | %-14s | %-14s |\n' % row
-    stats += '| %s | %s | %s | %s | %s | %s | %s |\n' % ('-'*9, '-'*40, '-'*17, '-'*10, '-'*10, '-'*14, '-'*14)
+    stats += '| %s | %s | %s | %s | %s | %s | %s |\n' % (
+    '-' * 9, '-' * 40, '-' * 17, '-' * 10, '-' * 10, '-' * 14, '-' * 14)
     gen_opts['stats'] = ''
     append_stats(gen_opts, stats)
 
@@ -732,70 +746,6 @@ def append_stats(gen_opts, stats):
     gen_opts['stats'] += stats
 
 
-def make_family_1():
-    t_img = parse_typ('I')  # simple Image type
-
-    t_op2 = fun_typ((t_img, t_img), t_img)  # Simple binary operation
-    t_op4 = fun_typ((t_img, t_img, t_img, t_img), t_img)  # Simple tetra operation
-
-    goal = t_img
-    gamma = parse_ctx(OrderedDict([
-        (H, t_op2),
-        (V, t_op2),
-        (Q, t_op4),
-        (W, t_img),
-        (B, t_img)
-    ]))
-
-    return goal, gamma
-
-
-family_lib = {
-    'family_1': make_family_1
-}
-
-H, V, Q, C = 'h', 'v', 'q', 'c'
-
-h = lambda c1, c2: [H, c1, c2]
-v = lambda c1, c2: [V, c1, c2]
-q = lambda c1, c2, c3, c4: [Q, c1, c2, c3, c4]
-c = lambda r, g, b: [C, r, g, b]
-
-W, B, G = 'W', 'B', 'G'
-Re, Gr, Bl = 'r', 'g', 'b'
-
-Colors = {
-    W: (255, 255, 255), B: (0, 0, 0), G: (128, 128, 128),
-    Re: (255, 0, 0), Gr: (0, 255, 0), Bl: (0, 0, 255)
-}
-
-# TODO: generate automatically !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-arity_dict_family_1 = {
-    H: 2,
-    V: 2,
-    Q: 4,
-    W: 0,
-    B: 0,
-
-    C: 3,
-    G: 0,
-    Re: 0,
-    Gr: 0,
-    Bl: 0
-}
-
-
-def make_hand_crafted_examples():
-    code_001 = h(v(G, h(v(G, h(v(G, h(v(G, B), B)), B)), B)), B)
-    code_002 = q(Re, Gr, Bl, q(Re, Gr, Bl, q(Re, Gr, Bl, q(Re, Gr, Bl, q(Re, Gr, Bl, q(Re, Gr, Bl, q(Re, Gr, Bl, q(Re, Gr, Bl, G))))))))
-    elephant = q(G, q(q(W, W, q(G, G, B, G), W), W, G, W), q(W, G, q(G, G, G, q(W, W, G, W)), q(G, G, W, G)),
-                q(q(q(W, q(W, W, G, q(G, W, q(q(W, W, W, G), G, W, W), W)), W, G), G, W, W), W, q(W, W, q(W, W, G, W), W), W))
-
-    simpler_elephant = q(G, q(W, W, G, W), q(W, G, q(G, G, G, W), q(G, G, W, G)), q(q(q(W, q(W, W, G, q(G, W, q(q(W, W, W, G), G, W, W), W)), W, G), G, W, W), W, q(W, W, W, W), W))
-
-    return [code_001, code_002, elephant, simpler_elephant]
-
-
 def save_hand_crafted_examples(img_size, dir_path='imgs/handmade/'):
     codes = make_hand_crafted_examples()
 
@@ -803,7 +753,7 @@ def save_hand_crafted_examples(img_size, dir_path='imgs/handmade/'):
     filename_pat = dir_path + '%03d.png'
 
     for i, code in enumerate(codes):
-        render_to_file(filename_pat % (i+1), img_size, code)
+        render_to_file(filename_pat % (i + 1), img_size, code)
 
 
 def append_line(filename, line):
@@ -871,7 +821,6 @@ def from_prefix_list(prefix_list, arity_dict):
 
 
 def compute_prefix_mismatch(prefix_list, arity_dict):
-
     mismatch = 1  # Initially, we have one "open node" in the root.
 
     for sym in prefix_list:
@@ -899,13 +848,11 @@ def test_img_code(img_code):
 
 
 def main_test_sort():
-
     for row in sorted([('abc', 12.1), ('cde', 120.1), ('efg', 1.21)], key=lambda r: -r[1]):
         print(row)
 
 
 def main_test():
-
     print(from_prefix_notation_family_1("W"))
     print(from_prefix_notation_family_1("B"))
     print(from_prefix_notation_family_1("h"))
@@ -962,103 +909,6 @@ def imgs_err(im1, im2):
     diff = np.abs(i1 - i2)
     err = np.sum(diff) / (3 * im1.size[0] * im1.size[1] * 255)
     return float(err)
-
-
-def render(code, zoom, draw):
-
-    if isinstance(code, list):
-        func_name = code[0]
-
-        if is_split_operator(func_name):
-
-            new_zooms = split_zoom(func_name, zoom)
-
-            if len(new_zooms) != len(code) - 1:
-                raise ValueError('Split operator mus have 2 args.')
-
-            for i in range(0, len(new_zooms)):
-                render(code[i+1], new_zooms[i], draw)
-
-        elif is_color_encoding(func_name):
-
-            if len(code) != 4:
-                raise ValueError('Color encoding must have 3 args.')
-
-            render_color((code[1], code[2], code[3]), zoom, draw)
-
-        else:
-            raise ValueError('Unsupported function', func_name)
-
-    elif isinstance(code, str):
-        render_color(decode_color(code), zoom, draw)
-
-    else:
-        raise ValueError("Unsupported code format.")
-
-
-def render_color(color, zoom, draw):
-    draw.rectangle(zoom, fill=color)
-
-
-def is_split_operator(func_name):
-    return func_name == H or func_name == V or func_name == Q
-
-
-def is_color_encoding(func_name):
-    return func_name == C
-
-
-def split_zoom(func_name, zoom):
-    x1, y1, x2, y2 = zoom
-    if func_name == H:
-        y_split = round((y1 + y2) / 2)
-        return [(x1, y1, x2, y_split), (x1, y_split, x2, y2)]
-    elif func_name == V:
-        x_split = round((x1 + x2) / 2)
-        return [(x1, y1, x_split, y2), (x_split, y1, x2, y2)]
-    elif func_name == Q:
-        x_split = round((x1 + x2) / 2)
-        y_split = round((y1 + y2) / 2)
-        return [
-            (x1, y1, x_split, y_split), (x_split, y1, x2, y_split),
-            (x1, y_split, x_split, y2), (x_split, y_split, x2, y2)
-        ]
-    else:
-        raise ValueError("Unsupported function", func_name)
-
-
-def decode_color(color_code):
-    color = Colors.get(color_code, None)
-    if color is None:
-        raise ValueError('Unsupported color code', color_code)
-    return color
-
-
-def render_to_img(img_size, img_code):
-    im = Image.new('RGB', img_size)
-
-    zoom = (0, 0, im.size[0], im.size[1])
-    draw = ImageDraw.Draw(im)
-
-    render(img_code, zoom, draw)
-
-    del draw
-    return im
-
-
-def render_to_img_with_phash(gen_opts, img_code):
-    im = render_to_img(gen_opts['img_size'], img_code)
-
-    hash_opts = gen_opts['hash_opts']
-    img_hash = imagehash.phash(im, hash_opts['hash_size'], hash_opts['highfreq_factor'])
-    # print('\t img_hash =', img_hash)
-
-    return im, img_hash
-
-
-def render_to_file(filename, img_size, img_code):
-    im = render_to_img(img_size, img_code)
-    im.save(filename, 'PNG')
 
 
 if __name__ == '__main__':
