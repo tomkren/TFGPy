@@ -9,6 +9,7 @@ import domain_parity_stack
 import domain_physics
 import domain_physics_smart
 import domain_primes_apptree
+import stack
 from app_tree import UnfinishedLeaf
 from mcts import MCTNode, mct_search, C_UCT_EXPLORE_DEFAULT
 from nmcs import nested_mc_search
@@ -66,7 +67,10 @@ def parse_args():
 
 
 def print_k_histogram(domain):
-    print("k-size histogram")
+    #print()
+    #print(len(stack.missings))
+    #print(sum(stack.missings)/len(stack.missings))
+    print("k-size histogram, sum=", sum(domain.size_d.values()))
     print('\n'.join("%s = %s" % (a, b) for a, b in sorted(domain.size_d.items())))
 
 
