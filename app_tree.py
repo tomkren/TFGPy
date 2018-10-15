@@ -123,6 +123,8 @@ class AppTree:
     def map_reduce(self, mapper, reducer):
         return mapper(self)
 
+    def to_sexpr_json(self):
+        raise NotImplementedError
 
 class Abs(AppTree):
     def __init__(self, var, body, typ=None):
@@ -240,6 +242,16 @@ class App(AppTree):
     def __str__(self):
         return "(%s %s)" % (self.fun, self.arg)
 
+    def to_sexpr_json(self):
+        fun_json = self.fun.to_sexpr_json()
+        arg_json = self.arg.to_sexpr_json()
+
+        if isinstance(fun_json, list):
+            fun_json.append(arg_json)
+            return fun_json
+        else:
+            return [fun_json, arg_json]
+
     def eval_str(self):
         return "%s(%s)" % (self.fun.eval_str(), self.arg.eval_str())
 
@@ -330,6 +342,9 @@ class Leaf(AppTree):
         return "Leaf(%s, %s)" % (repr(self.sym), repr(self.typ))
 
     def __str__(self):
+        return str(self.sym)
+
+    def to_sexpr_json(self):
         return str(self.sym)
 
     def _eq_content(self, other):

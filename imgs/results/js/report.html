@@ -1,0 +1,47 @@
+<!doctype html>
+
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>TestData Report</title>
+</head>
+
+<script src="../js/vendor/jquery.min.js"></script>
+<script src="../js/vendor/lodash.js"></script>
+
+<script src="report-data.js"></script>
+<script src="../js/report.js"></script>
+
+<style>
+    img {display: block;}
+    td {margin: 0; padding: 0;}
+    table {border-collapse: collapse;}
+    table, th, td {border: 1px solid lightgrey;}
+    .txt-cell {padding-left: 10px; padding-right: 10px; font-family: monospace; font-size: 9pt;}
+</style>
+
+<body>
+
+<h1>Results on test data</h1>
+
+<h2>Stats for test data</h2>
+
+Number of test instances: <span id="stats_num_test_instances"></span> <br>
+Number of absolute matches: <span id="stats_num_absolute_matches"></span> <br>
+Percent absolute matches: <span id="stats_percent_absolute_matches"></span> % <br>
+Average error: <span id="stats_mean_error"></span> <br>
+Worst error: <span id="stats_worst_error"></span> <br>
+Number of output codes in incorrect format: <span id="stats_num_mismatches"></span> <br>
+
+<img src="error_hist.png">
+
+<h2>Results on test data (sorted from worst to best error)</h2>
+
+<button id="shuffle-button">Shuffle!</button><br><br>
+
+
+<div id="report_table_container"></div>
+<div id="table-tail">loading more...</div>
+
+</body>
+</html>
