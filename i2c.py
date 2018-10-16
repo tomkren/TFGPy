@@ -1,5 +1,7 @@
 from collections import OrderedDict
 from time import time
+from collections import namedtuple
+
 import os
 import json
 from PIL import Image, ImageDraw, ImageMath, ImageStat  # Using https://pillow.readthedocs.io
@@ -28,6 +30,112 @@ def i2c_run(args):
 
 def main_prepare_experiment():
     prepare_experiment('few_big', 'imgs/gen')
+
+
+RooterImgData = namedtuple('RooterImgData', ['big_code', 'zoom_stack'])
+ZoomData = namedtuple('ZoomData', ['img_path', 'zoom'])
+
+
+def make_new_zoom_image(zoom_data):
+
+    # TODO: We need to pass to this function also the desired_size
+
+    new_img_path = None # TODO "!!!!!!!!!!!
+
+    return new_img_path
+
+
+def run_recursive_rooter(experiment_path, img_paths):
+
+    if not experiment_path.endswith('/'):
+        experiment_path += '/'
+
+    if isinstance(img_paths, str):
+        img_paths = [img_paths]
+
+    def make_rooter_img_data(img_path):
+        full_img_path = experiment_path +'imgs/'+ img_path
+
+        im = Image.open(full_img_path)
+        width, height = im.size
+
+        zoom = (0, 0, width, height)
+
+        big_code = []
+        zoom_stack = [ZoomData(img_path, zoom)]
+
+        return RooterImgData(big_code, zoom_stack)
+
+    imgs_data = [make_rooter_img_data(p) for p in img_paths]
+
+    results = []
+
+    while len(imgs_data) > 0:
+        new_results, imgs_data = run_recursive_rooter_step(experiment_path, imgs_data)
+        results += new_results
+
+    return results
+
+
+def run_recursive_rooter_step(experiment_path, imgs_data):
+
+    # These should be args:
+
+    arity_dict = arity_dict_family_1
+    default_sym = W
+
+    # ---------------------
+
+    # TODO : We need to deal with the image cut position, add it to the to-do stack.
+
+    img_paths = []
+    for one_img_data in imgs_data:
+        zoom_data = one_img_data.zoom_stack.pop()
+        new_img_path = make_new_zoom_image(zoom_data)
+        img_paths.append(new_img_path)
+
+    prefix_codes = run_model(experiment_path, img_paths)
+
+    if not isinstance(prefix_codes, list):
+        raise ValueError("prefix_codes is not a list.")
+
+    if len(prefix_codes) != len(imgs_data):
+        raise ValueError("len(prefix_codes) != len(imgs_data) ... %d != %d" % (len(prefix_codes), len(imgs_data)))
+
+    results = []
+    new_imgs_data = []
+    i = 0
+    for prefix_code_str in prefix_codes:
+
+        one_img_data = imgs_data[i]
+        i += 1
+
+        small_code, mismatch = from_prefix_notation(prefix_code_str, arity_dict, default_sym)
+
+        root_sym = small_code[0] if isinstance(small_code, list) else small_code
+
+        if not isinstance(small_code, str):
+            raise ValueError("root_sym '%s' is not a string." % str(root_sym))
+
+        arity = arity_dict[root_sym]
+
+        big_code = one_img_data.big_code + [root_sym]
+
+        img_paths = one_img_data.img_paths
+
+        num_unfinished_nodes = len(img_paths) + arity
+
+        if num_unfinished_nodes == 0:
+
+            results.append(big_code)
+
+        else:
+            new_img_path = None # TODO !!!
+
+            new_one_img_data = RooterImgData(big_code, new_img_path)
+            new_imgs_data.append(new_one_img_data)
+
+    return results, new_imgs_data
 
 
 def run_model(experiment_path, img_paths):
@@ -64,20 +172,20 @@ def run_model(experiment_path, img_paths):
 
     output_file_path = experiment_path + 'out/model_outputs_generated.txt'
 
-    codes = []
+    prefix_codes = []
 
     with open(output_file_path, 'r') as f_output_codes:
         while True:
-            code_str = f_output_codes.readline().strip()
-            if code_str:
-                print('output_code -> %s' % code_str)
-                codes.append(code_str)
+            prefix_code_str = f_output_codes.readline().strip()
+            if prefix_code_str:
+                print('output_code -> %s' % prefix_code_str)
+                prefix_codes.append(prefix_code_str)
             else:
                 print('')
                 break
 
-    print('codes:', codes)
-    return codes
+    print('prefix_codes:', prefix_codes)
+    return prefix_codes
 
 
 def test_big_image():
