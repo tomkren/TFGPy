@@ -36,25 +36,17 @@ RooterImgData = namedtuple('RooterImgData', ['big_code', 'zoom_stack'])
 ZoomData = namedtuple('ZoomData', ['img_path', 'zoom'])
 
 
-def make_new_zoom_image(zoom_data):
 
-    # TODO: We need to pass to this function also the desired_size
-
-    new_img_path = None # TODO "!!!!!!!!!!!
-
-    return new_img_path
-
-
-def run_recursive_rooter(experiment_path, img_paths):
+def run_recursive_rooter(experiment_path, big_img_paths):
 
     if not experiment_path.endswith('/'):
         experiment_path += '/'
 
-    if isinstance(img_paths, str):
-        img_paths = [img_paths]
+    if isinstance(big_img_paths, str):
+        big_img_paths = [big_img_paths]
 
-    def make_rooter_img_data(img_path):
-        full_img_path = experiment_path +'imgs/'+ img_path
+    def make_rooter_img_data(big_img_path):
+        full_img_path = experiment_path +'imgs/' + big_img_path
 
         im = Image.open(full_img_path)
         width, height = im.size
@@ -62,11 +54,10 @@ def run_recursive_rooter(experiment_path, img_paths):
         zoom = (0, 0, width, height)
 
         big_code = []
-        zoom_stack = [ZoomData(img_path, zoom)]
-
+        zoom_stack = [ZoomData(big_img_path, zoom)]
         return RooterImgData(big_code, zoom_stack)
 
-    imgs_data = [make_rooter_img_data(p) for p in img_paths]
+    imgs_data = [make_rooter_img_data(p) for p in big_img_paths]
 
     results = []
 
@@ -91,8 +82,7 @@ def run_recursive_rooter_step(experiment_path, imgs_data):
     img_paths = []
     for one_img_data in imgs_data:
         zoom_data = one_img_data.zoom_stack.pop()
-        new_img_path = make_new_zoom_image(zoom_data)
-        img_paths.append(new_img_path)
+        img_paths.append(zoom_data.img_path)
 
     prefix_codes = run_model(experiment_path, img_paths)
 
@@ -429,7 +419,7 @@ def main():
 
 def main_process_results():
 
-    dataset_id = 'haf_64'  # '003'
+    dataset_id = '003' #  'haf_64'  #
 
     results_root_dir_path = 'imgs/results/'
     results_dir_path = results_root_dir_path + 'results_' + dataset_id + '/'
@@ -542,10 +532,26 @@ def main_process_results():
 
     rows.sort(key=lambda r: -r[2])
 
+    compression_ratios = []
+
     for row in rows:
-        row[1] = row[1], correct_codes[row[0]]
+        in_line = row[0]
+        out_line_NOT_corrected = row[1]
+        err = row[2]
+        original_correct_code = correct_codes[in_line]
+        if err == 0:
+            compression_ratio = float(len(original_correct_code)) / float(len(out_line_NOT_corrected))
+            compression_ratios.append(compression_ratio)
+            if compression_ratio >= 2.0:
+                print(original_correct_code)
+                print(out_line_NOT_corrected)
+                print(compression_ratio)
+                print('--------------------------------')
+
+        row[1] = out_line_NOT_corrected, original_correct_code
 
     err_hist_filename = 'error_hist.png'
+    compression_hist_filename = 'compression_hist.png'
 
     copyfile(report_template_path, report_path)
 
@@ -563,6 +569,15 @@ def main_process_results():
     plt.hist(errs, bins=23)
     plt.savefig(results_dir_path + err_hist_filename)
     # plt.show()
+    plt.gcf().clear()
+
+    plt.title('Histogram of compression on test data')
+    plt.xlabel('Compression ratio')
+    plt.ylabel('N')
+    plt.hist(compression_ratios, bins=23)
+    plt.savefig(results_dir_path + compression_hist_filename)
+    # plt.show()
+    plt.gcf().clear()
 
     print('Done.')
 
@@ -1174,7 +1189,8 @@ if __name__ == '__main__':
     # main_nn()
     # main_test_nn()
     # main_test()
-    # =-> main_process_results()
+    # =->
+    main_process_results()
     # test_histogram()
-    main_prepare_experiment()
+    # ==-> main_prepare_experiment()
     # test_big_image()
